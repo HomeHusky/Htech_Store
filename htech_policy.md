@@ -3,7 +3,7 @@
 ### **1.1. Quy định đổi trả (1-đổi-1)**
 * **Thời gian:** 1-đổi-1 trong vòng **30 ngày đầu tiên** nếu có lỗi phần cứng từ nhà sản xuất.
 * **Điều kiện:** Máy còn nguyên tem bảo hành, không có dấu hiệu tác động vật lý (móp méo, vào nước), đầy đủ hộp và phụ kiện đi kèm.
-* **Sản phẩm không lỗi:** Nếu khách hàng muốn đổi sang mẫu khác do sở thích (máy không lỗi), studio hỗ trợ thu mua lại với mức phí từ 10% - 20% giá trị máy tùy thời điểm.
+* **Sản phẩm không lỗi:** Nếu khách hàng muốn đổi sang mẫu khác do sở thích (máy không lỗi), Htech Store hỗ trợ thu mua lại với mức phí từ 10% - 20% giá trị máy tùy thời điểm.
 
 ### **1.2. Thời hạn bảo hành**
 * **Máy mới (New 100%):** Bảo hành chính hãng **12 tháng** theo tiêu chuẩn của nhà sản xuất (Apple, Dell, Samsung, v.v.).

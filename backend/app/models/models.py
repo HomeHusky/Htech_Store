@@ -84,7 +84,7 @@ class Product(Base):
     category: Mapped[str] = mapped_column(ForeignKey("categories.id"), nullable=False, index=True)
     category_ref: Mapped["Category"] = relationship(back_populates="products")
     price: Mapped[int] = mapped_column(Integer, nullable=False)
-    price_per_day: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_trade_in: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     image: Mapped[str] = mapped_column(String, nullable=False)
     gallery: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     description: Mapped[dict] = mapped_column(JSON, nullable=False)
@@ -146,7 +146,7 @@ class Order(Base):
     status: Mapped[OrderStatus] = mapped_column(
         Enum(OrderStatus, name="order_status"), default=OrderStatus.AWAITING_DEPOSIT, nullable=False, index=True
     )
-    event_date: Mapped[date] = mapped_column(Date, nullable=False)
+    expected_delivery: Mapped[date] = mapped_column(Date, nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     payment_proof: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -167,7 +167,7 @@ class OrderItem(Base):
     variant_id: Mapped[str | None] = mapped_column(ForeignKey("product_variants.id", ondelete="SET NULL"), nullable=True, index=True)
     qty: Mapped[int] = mapped_column(Integer, nullable=False)
     price: Mapped[int] = mapped_column(Integer, nullable=False)
-    days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Days field removed as it was for rentals
     warranty_expiry: Mapped[date | None] = mapped_column(Date, nullable=True)
 
     order: Mapped["Order"] = relationship(back_populates="items")
@@ -258,6 +258,41 @@ class Voucher(Base):
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class PromotionType(str, enum.Enum):
+    PERCENTAGE = "percentage"
+    FIXED = "fixed"
+    FREE_SHIPPING = "freeShipping"
+    BUY_X_GET_Y = "buyXgetY"
+
+
+class PromotionStatus(str, enum.Enum):
+    ACTIVE = "active"
+    SCHEDULED = "scheduled"
+    EXPIRED = "expired"
+    DISABLED = "disabled"
+
+
+class Promotion(Base):
+    __tablename__ = "promotions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code: Mapped[str] = mapped_column(String, unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    type: Mapped[PromotionType] = mapped_column(Enum(PromotionType, name="promotion_type"), nullable=False)
+    value: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    min_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    max_discount: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    usage_limit: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
+    used_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    start_date: Mapped[date] = mapped_column(Date, nullable=False)
+    end_date: Mapped[date] = mapped_column(Date, nullable=False)
+    status: Mapped[PromotionStatus] = mapped_column(Enum(PromotionStatus, name="promotion_status"), default=PromotionStatus.ACTIVE)
+    applicable_products: Mapped[str] = mapped_column(String, default="all") # all, category, specific
+    category: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 class StorePolicy(Base):
     __tablename__ = "store_policies"
 
@@ -299,7 +334,7 @@ class StoreProfile(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
     name: Mapped[str] = mapped_column(String, nullable=False, default="Htech")
     address: Mapped[str] = mapped_column(String, nullable=False, default="23 Đồng Khởi, District 1, Saigon")
-    email: Mapped[str] = mapped_column(String, nullable=False, default="hello@htechstudio.vn")
+    email: Mapped[str] = mapped_column(String, nullable=False, default="hello@htechstore.vn")
     bank_name: Mapped[str] = mapped_column(String, nullable=False, default="Vietcombank")
     bank_account: Mapped[str] = mapped_column(String, nullable=False, default="0123 456 789")
     bank_beneficiary: Mapped[str] = mapped_column(String, nullable=False, default="Htech")

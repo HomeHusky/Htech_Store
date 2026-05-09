@@ -9,16 +9,16 @@ from app.models.models import Voucher
 def verify_voucher(db: Session, code: str, subtotal: int | None = None) -> dict:
     voucher = db.scalar(select(Voucher).where(Voucher.code == code))
     if not voucher:
-        return {"valid": False, "code": code, "reason": "Voucher not found"}
+        return {"valid": False, "code": code, "reason": "không tìm thấy mã voucher"}
     if not voucher.active:
-        return {"valid": False, "code": code, "reason": "Voucher inactive"}
+        return {"valid": False, "code": code, "reason": "mã voucher đang tạm tắt"}
     if voucher.expires_at and voucher.expires_at < datetime.now(timezone.utc):
-        return {"valid": False, "code": code, "reason": "Voucher expired"}
+        return {"valid": False, "code": code, "reason": "mã voucher đã hết hạn"}
     if subtotal is not None and subtotal < voucher.min_order_value:
         return {
             "valid": False,
             "code": code,
-            "reason": f"Minimum order value is {voucher.min_order_value}",
+            "reason": f"đơn hàng tối thiểu là {voucher.min_order_value:,} VND",
             "minOrderValue": voucher.min_order_value,
         }
 

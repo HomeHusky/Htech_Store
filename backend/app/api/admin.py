@@ -9,7 +9,7 @@ from typing import List
 from app.db.session import get_db
 from app.models.models import (
     Order, Repair, RepairNote, RepairStatus, StoreSetting, 
-    Category, Product, User, OrderItem
+    Category, Product, User, OrderItem, Promotion, PromotionStatus, PromotionType
 )
 from app.schemas.admin import (
     AISettingsDTO, ModelCatalogResponse, ModelTestRequestDTO,
@@ -17,7 +17,8 @@ from app.schemas.admin import (
     ProductDTO, PromoUpdateDTO, StoreProfileDTO, OrderDTO,
     OrderItemDTO, OrderStatusUpdateDTO, UserDTO, LoginRequestDTO,
     CategoryDTO, RepairDTO, RepairNoteDTO, ThemePaletteDTO, 
-    ThemeSettingsResponseDTO, StoreSettingsDTO, TelegramTestDTO
+    ThemeSettingsResponseDTO, StoreSettingsDTO, TelegramTestDTO,
+    PromotionDTO, PromotionCreateDTO
 )
 from app.services.admin_service import (
     delete_product, get_all_orders, get_all_products,
@@ -96,7 +97,7 @@ def list_products(db: Session = Depends(get_db)):
     return [
         ProductDTO(
             id=p.id, slug=p.slug, name=p.name, brand=p.brand, category=p.category,
-            tagline=p.tagline or {"vi": "", "en": ""}, basePrice=p.price, price_per_day=p.price_per_day, 
+            tagline=p.tagline or {"vi": "", "en": ""}, basePrice=p.price, is_trade_in=p.is_trade_in, 
             image=p.image, gallery=p.gallery, description=p.description, 
             details=p.details, highlightSpecs=p.highlight_specs,
             available=p.available, trending=p.trending, isNew=p.is_new,
@@ -110,8 +111,22 @@ def create_product(payload: ProductDTO, db: Session = Depends(get_db)):
     p = upsert_product(db, payload)
     return ProductDTO(
         id=p.id, slug=p.slug, name=p.name, brand=p.brand, category=p.category,
-        tagline=p.tagline or {"vi": "", "en": ""}, basePrice=p.price, price_per_day=p.price_per_day, 
+        tagline=p.tagline or {"vi": "", "en": ""}, basePrice=p.price, is_trade_in=p.is_trade_in, 
         image=p.image, gallery=p.gallery, description=p.description, 
+        details=p.details, highlightSpecs=p.highlight_specs,
+        available=p.available, trending=p.trending, isNew=p.is_new,
+        stock=p.stock, rating=p.rating, reviewCount=p.review_count,
+        discountPercent=p.discount,
+    )
+
+@router.put("/products/{product_id}", response_model=ProductDTO)
+def update_product(product_id: str, payload: ProductDTO, db: Session = Depends(get_db)):
+    payload.id = product_id
+    p = upsert_product(db, payload)
+    return ProductDTO(
+        id=p.id, slug=p.slug, name=p.name, brand=p.brand, category=p.category,
+        tagline=p.tagline or {"vi": "", "en": ""}, basePrice=p.price, is_trade_in=p.is_trade_in,
+        image=p.image, gallery=p.gallery, description=p.description,
         details=p.details, highlightSpecs=p.highlight_specs,
         available=p.available, trending=p.trending, isNew=p.is_new,
         stock=p.stock, rating=p.rating, reviewCount=p.review_count,
@@ -131,13 +146,87 @@ def update_promo(product_id: str, payload: PromoUpdateDTO, db: Session = Depends
     p = update_product_promo(db, product_id, payload)
     return ProductDTO(
         id=p.id, slug=p.slug, name=p.name, brand=p.brand, category=p.category,
-        tagline=p.tagline or {"vi": "", "en": ""}, basePrice=p.price, price_per_day=p.price_per_day, 
+        tagline=p.tagline or {"vi": "", "en": ""}, basePrice=p.price, is_trade_in=p.is_trade_in, 
         image=p.image, gallery=p.gallery, description=p.description, 
         details=p.details, highlightSpecs=p.highlight_specs,
         available=p.available, trending=p.trending, isNew=p.is_new,
         stock=p.stock, rating=p.rating, reviewCount=p.review_count,
         discountPercent=p.discount,
     )
+
+
+def _promotion_dto(p: Promotion) -> PromotionDTO:
+    return PromotionDTO(
+        id=p.id,
+        code=p.code,
+        name=p.name,
+        type=p.type.value,
+        value=p.value,
+        min_order=p.min_order,
+        max_discount=p.max_discount,
+        usage_limit=p.usage_limit,
+        used_count=p.used_count,
+        start_date=p.start_date.isoformat(),
+        end_date=p.end_date.isoformat(),
+        status=p.status.value,
+        applicable_products=p.applicable_products,
+        category=p.category,
+    )
+
+
+def _apply_promotion_payload(p: Promotion, payload: PromotionCreateDTO | PromotionDTO) -> Promotion:
+    from datetime import date
+
+    p.code = payload.code.upper().strip()
+    p.name = payload.name
+    p.type = PromotionType(payload.type)
+    p.value = payload.value
+    p.min_order = payload.min_order
+    p.max_discount = payload.max_discount
+    p.usage_limit = payload.usage_limit
+    p.start_date = date.fromisoformat(payload.start_date)
+    p.end_date = date.fromisoformat(payload.end_date)
+    p.applicable_products = payload.applicable_products
+    p.category = payload.category
+    if hasattr(payload, "status"):
+        p.status = PromotionStatus(payload.status)
+    return p
+
+
+@router.get("/promotions", response_model=List[PromotionDTO])
+def list_promotions(db: Session = Depends(get_db)):
+    promotions = db.query(Promotion).order_by(Promotion.created_at.desc()).all()
+    return [_promotion_dto(p) for p in promotions]
+
+
+@router.post("/promotions", response_model=PromotionDTO)
+def create_promotion(payload: PromotionCreateDTO, db: Session = Depends(get_db)):
+    p = _apply_promotion_payload(Promotion(), payload)
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+    return _promotion_dto(p)
+
+
+@router.put("/promotions/{promotion_id}", response_model=PromotionDTO)
+def update_promotion(promotion_id: int, payload: PromotionDTO, db: Session = Depends(get_db)):
+    p = db.get(Promotion, promotion_id)
+    if not p:
+        raise HTTPException(404, "Promotion not found")
+    _apply_promotion_payload(p, payload)
+    db.commit()
+    db.refresh(p)
+    return _promotion_dto(p)
+
+
+@router.delete("/promotions/{promotion_id}")
+def remove_promotion(promotion_id: int, db: Session = Depends(get_db)):
+    p = db.get(Promotion, promotion_id)
+    if not p:
+        raise HTTPException(404, "Promotion not found")
+    db.delete(p)
+    db.commit()
+    return {"success": True}
 
 @router.get("/model-catalog", response_model=ModelCatalogResponse)
 async def model_catalog():
@@ -216,12 +305,12 @@ def list_orders(db: Session = Depends(get_db)):
             id=o.id, order_number=o.order_number, customer=o.customer,
             email=o.email, phone=o.phone, total=o.total, deposit=o.deposit,
             status=o.status.value.replace("_", " ").title(),
-            event_date=o.event_date.isoformat(), payment_proof=o.payment_proof,
+            expected_delivery=o.expected_delivery.isoformat(), payment_proof=o.payment_proof,
             items=[
                 OrderItemDTO(
                     product_id=i.product_id,
                     name=i.product.name.get("vi") if i.product else "Unknown",
-                    qty=i.qty, price=i.price, days=i.days,
+                    qty=i.qty, price=i.price,
                 ) for i in o.items
             ],
         ) for o in orders
@@ -235,12 +324,12 @@ def patch_order_status(order_id: str, payload: OrderStatusUpdateDTO, db: Session
         id=o.id, order_number=o.order_number, customer=o.customer,
         email=o.email, phone=o.phone, total=o.total, deposit=o.deposit,
         status=o.status.value.replace("_", " ").title(),
-        event_date=o.event_date.isoformat(),
+        expected_delivery=o.expected_delivery.isoformat(),
         items=[
             OrderItemDTO(
                 product_id=i.product_id,
                 name=i.product.name.get("vi") if i.product else "Unknown",
-                qty=i.qty, price=i.price, days=i.days,
+                qty=i.qty, price=i.price,
             ) for i in o.items
         ],
     )
@@ -297,12 +386,49 @@ def create_repair_endpoint(payload: RepairDTO, db: Session = Depends(get_db)):
         status=RepairStatus.RECEIVED
     )
     db.add(r)
+    for note in payload.notes:
+        db.add(RepairNote(id=str(uuid.uuid4()), repair_id=r.id, content=note.content))
     db.commit()
     db.refresh(r)
     return RepairDTO(
         id=r.id, customer_name=r.customer_name, device_name=r.device_name,
-        issue=r.issue, status=r.status.value, created_at=r.created_at.isoformat()
+        issue=r.issue, status=r.status.value, created_at=r.created_at.isoformat(),
+        notes=[RepairNoteDTO(id=n.id, content=n.content, created_at=n.created_at.isoformat()) for n in r.notes]
     )
+
+
+@router.put("/repairs/{repair_id}", response_model=RepairDTO)
+def update_repair_endpoint(repair_id: str, payload: RepairDTO, db: Session = Depends(get_db)):
+    r = db.get(Repair, repair_id)
+    if not r:
+        raise HTTPException(404, "Repair not found")
+    r.customer_name = payload.customer_name
+    r.device_name = payload.device_name
+    r.issue = payload.issue
+    try:
+        r.status = RepairStatus(payload.status.lower())
+    except ValueError:
+        pass
+    r.notes.clear()
+    for note in payload.notes:
+        r.notes.append(RepairNote(id=note.id or str(uuid.uuid4()), content=note.content))
+    db.commit()
+    db.refresh(r)
+    return RepairDTO(
+        id=r.id, customer_name=r.customer_name, device_name=r.device_name,
+        issue=r.issue, status=r.status.value, created_at=r.created_at.isoformat(),
+        notes=[RepairNoteDTO(id=n.id, content=n.content, created_at=n.created_at.isoformat()) for n in r.notes]
+    )
+
+
+@router.delete("/repairs/{repair_id}")
+def remove_repair_endpoint(repair_id: str, db: Session = Depends(get_db)):
+    r = db.get(Repair, repair_id)
+    if not r:
+        raise HTTPException(404, "Repair not found")
+    db.delete(r)
+    db.commit()
+    return {"success": True}
 
 @router.get("/theme", response_model=ThemeSettingsResponseDTO)
 def get_theme_settings_endpoint(db: Session = Depends(get_db)):

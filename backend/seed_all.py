@@ -13,20 +13,21 @@ from app.models.models import Product, Order, OrderItem, OrderStatus, Category
 products_seed = [
     {
         "id": "p1",
-        "slug": "lumiere-lace-gown",
-        "name": {"en": "Lumière Lace Gown", "vi": "Đầm Cưới Ren Lumière"},
-        "category": "Dress",
-        "price": 1200000,
-        "price_per_day": True,
-        "image": "/images/dress-1.jpg",
-        "gallery": ["/images/dress-1.jpg", "/images/hero-dress.jpg", "/images/hero-bride.jpg"],
+        "slug": "macbook-pro-m3",
+        "name": {"en": "MacBook Pro M3", "vi": "MacBook Pro M3"},
+        "category": "LAPTOP",
+        "brand": "Apple",
+        "price": 39990000,
+        "is_trade_in": True,
+        "image": "/images/macbook-m3.jpg",
+        "gallery": ["/images/macbook-m3.jpg"],
         "description": {
-            "en": "A heirloom-inspired lace gown with hand-stitched ivory embroidery and a soft chapel train.",
-            "vi": "Đầm ren lấy cảm hứng di sản với thêu tay màu ngà và đuôi nhà nguyện mềm mại."
+            "en": "The most advanced chips ever built for a personal computer.",
+            "vi": "Chip tiên tiến nhất từng được chế tạo cho máy tính cá nhân."
         },
         "details": {
-            "en": ["Ivory French lace", "Pearl button back", "Bust 84-92cm · Waist 64-72cm"],
-            "vi": ["Ren Pháp màu ngà", "Lưng cúc ngọc trai", "Vòng 1 84-92cm · Eo 64-72cm"]
+            "en": ["M3 Chip", "8GB Unified Memory", "512GB SSD"],
+            "vi": ["Chip M3", "8GB RAM", "512GB SSD"]
         },
         "available": True,
         "trending": True,
@@ -34,165 +35,61 @@ products_seed = [
     },
     {
         "id": "p2",
-        "slug": "peche-silk-evening",
-        "name": {"en": "Pêche Silk Evening", "vi": "Đầm Lụa Pêche Buổi Tối"},
-        "category": "Dress",
-        "price": 950000,
-        "price_per_day": True,
-        "image": "/images/dress-2.jpg",
-        "gallery": ["/images/dress-2.jpg", "/images/hero-bride.jpg"],
+        "slug": "iphone-15-pro",
+        "name": {"en": "iPhone 15 Pro", "vi": "iPhone 15 Pro"},
+        "category": "MOBILE",
+        "brand": "Apple",
+        "price": 28990000,
+        "is_trade_in": True,
+        "image": "/images/iphone-15.jpg",
+        "gallery": ["/images/iphone-15.jpg"],
         "description": {
-            "en": "Blush peach silk slip with a fluid bias cut.",
-            "vi": "Đầm lụa hồng đào cắt xéo mềm mại."
+            "en": "Forged in titanium and featuring the groundbreaking A17 Pro chip.",
+            "vi": "Đúc từ titan và sở hữu chip A17 Pro đột phá."
         },
         "details": {
-            "en": ["Pure mulberry silk", "Adjustable straps"],
-            "vi": ["Lụa tơ tằm nguyên chất", "Dây vai điều chỉnh"]
+            "en": ["Titanium design", "A17 Pro chip", "Pro camera system"],
+            "vi": ["Thiết kế Titan", "Chip A17 Pro", "Hệ thống camera Pro"]
         },
         "available": True,
         "trending": True,
-        "discount": 15,
+        "discount": 5,
     },
     {
         "id": "p3",
-        "slug": "monsieur-navy-suit",
-        "name": {"en": "Monsieur Navy Three-Piece", "vi": "Vest Navy Monsieur 3 Mảnh"},
-        "category": "Suit",
-        "price": 1100000,
-        "price_per_day": True,
-        "image": "/images/dress-3.jpg",
-        "gallery": ["/images/dress-3.jpg"],
+        "slug": "airpods-pro-2",
+        "name": {"en": "AirPods Pro (2nd gen)", "vi": "AirPods Pro (Thế hệ 2)"},
+        "category": "ACCESSORY",
+        "brand": "Apple",
+        "price": 5990000,
+        "is_trade_in": False,
+        "image": "/images/airpods-pro.jpg",
+        "gallery": ["/images/airpods-pro.jpg"],
         "description": {
-            "en": "A classic navy three-piece with peak lapels.",
-            "vi": "Bộ vest navy 3 mảnh cổ điển với ve đỉnh."
+            "en": "Rebuilt from the sound up.",
+            "vi": "Tái tạo âm thanh từ nền tảng."
         },
         "details": {
-            "en": ["Italian wool blend", "Peak lapels"],
-            "vi": ["Pha len Ý", "Ve đỉnh"]
-        },
-        "available": True,
-        "discount": 20,
-    },
-    {
-        "id": "p4",
-        "slug": "ao-dai-heritage",
-        "name": {"en": "Áo Dài Heritage", "vi": "Áo Dài Di Sản"},
-        "category": "Dress",
-        "price": 880000,
-        "price_per_day": True,
-        "image": "/images/dress-4.jpg",
-        "gallery": ["/images/dress-4.jpg"],
-        "description": {
-            "en": "A traditional Vietnamese áo dài in ivory silk.",
-            "vi": "Áo dài truyền thống bằng lụa ngà."
-        },
-        "details": {
-            "en": ["Hand embroidery", "Pure silk"],
-            "vi": ["Thêu thủ công", "Lụa nguyên chất"]
-        },
-        "available": True,
-        "trending": True,
-    },
-    {
-        "id": "pk1",
-        "slug": "golden-hour-package",
-        "name": {"en": "Golden Hour — Pre-Wedding", "vi": "Khoảnh Khắc Vàng — Chụp Trước Cưới"},
-        "category": "Package",
-        "price": 12500000,
-        "price_per_day": False,
-        "image": "/images/package-1.jpg",
-        "gallery": ["/images/package-1.jpg", "/images/hero-couple.jpg"],
-        "description": {
-            "en": "A 4-hour pre-wedding shoot at the location of your choice.",
-            "vi": "Buổi chụp trước cưới 4 giờ tại địa điểm bạn chọn."
-        },
-        "details": {
-            "en": ["4 hours of shooting", "80 retouched photos"],
-            "vi": ["4 giờ chụp", "80 ảnh đã chỉnh sửa"]
-        },
-        "available": True,
-        "trending": True,
-    },
-    {
-        "id": "pk2",
-        "slug": "intimate-engagement",
-        "name": {"en": "Intimate Engagement", "vi": "Đính Hôn Riêng Tư"},
-        "category": "Package",
-        "price": 6800000,
-        "price_per_day": False,
-        "image": "/images/package-2.jpg",
-        "gallery": ["/images/package-2.jpg"],
-        "description": {
-            "en": "A 90-minute storytelling session in a café.",
-            "vi": "Buổi chụp kể chuyện 90 phút tại quán cà phê."
-        },
-        "details": {
-            "en": ["90 minutes", "40 retouched photos"],
-            "vi": ["90 phút", "40 ảnh đã chỉnh sửa"]
+            "en": ["H2 chip", "Active Noise Cancellation", "Personalized Spatial Audio"],
+            "vi": ["Chip H2", "Chống ồn chủ động", "Âm thanh không gian cá nhân hóa"]
         },
         "available": True,
         "discount": 10,
-    },
-    {
-        "id": "pk3",
-        "slug": "atelier-store-portrait",
-        "name": {"en": "Atelier Store Portrait", "vi": "Chân Dung Store Atelier"},
-        "category": "Package",
-        "price": 4500000,
-        "price_per_day": False,
-        "image": "/images/package-3.jpg",
-        "gallery": ["/images/package-3.jpg"],
-        "description": {
-            "en": "Editorial-style store portraits.",
-            "vi": "Chân dung store phong cách tạp chí."
-        },
-        "details": {
-            "en": ["2 hours store", "Hair & makeup included"],
-            "vi": ["2 giờ store", "Bao gồm tóc & trang điểm"]
-        },
-        "available": True,
     }
 ]
 
 orders_seed = [
     {
-        "id": "ML-2412",
-        "order_number": "ML-2412",
+        "id": "ML-3001",
+        "order_number": "HT-3001",
         "customer": "Linh Nguyễn",
         "email": "linh.n@email.com",
         "phone": "+84 901 234 567",
-        "total": 12500000,
-        "deposit": 2500000,
+        "total": 39990000,
+        "deposit": 8000000,
         "status": OrderStatus.PAID,
-        "event_date": date(2026, 5, 18),
-        "items": [{"productId": "pk1", "qty": 1, "price": 12500000}]
-    },
-    {
-        "id": "ML-2411",
-        "order_number": "ML-2411",
-        "customer": "An Trần",
-        "email": "an.tran@email.com",
-        "phone": "+84 902 555 121",
-        "total": 3600000,
-        "deposit": 720000,
-        "status": OrderStatus.AWAITING_DEPOSIT,
-        "event_date": date(2026, 5, 4),
-        "items": [{"productId": "p1", "qty": 1, "price": 1200000, "days": 3}]
-    },
-    {
-        "id": "ML-2410",
-        "order_number": "ML-2410",
-        "customer": "Mai Phạm",
-        "email": "mai.p@email.com",
-        "phone": "+84 903 880 044",
-        "total": 8560000,
-        "deposit": 1712000,
-        "status": OrderStatus.SERVICE_ONGOING,
-        "event_date": date(2026, 4, 26),
-        "items": [
-            {"productId": "p4", "qty": 1, "price": 880000, "days": 2},
-            {"productId": "pk2", "qty": 1, "price": 6800000}
-        ]
+        "expected_delivery": date(2026, 5, 18),
+        "items": [{"productId": "p1", "qty": 1, "price": 39990000}]
     }
 ]
 
@@ -201,7 +98,6 @@ def seed():
     try:
         # Seed Products
         for p_data in products_seed:
-            p_data["category"] = p_data["category"].upper()
             existing = db.get(Product, p_data["id"])
             if existing:
                 for key, value in p_data.items():
@@ -225,8 +121,7 @@ def seed():
                         order_id=order.id,
                         product_id=i_data["productId"],
                         qty=i_data["qty"],
-                        price=i_data["price"],
-                        days=i_data.get("days")
+                        price=i_data["price"]
                     )
                     db.add(item)
             else:

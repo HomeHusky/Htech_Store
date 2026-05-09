@@ -224,7 +224,7 @@ def seed_real_data():
                 total=price,
                 deposit=price // 5,
                 status=OrderStatus.COMPLETED if i < 15 else OrderStatus.PAID,
-                event_date=order_date.date(),
+                expected_delivery=order_date.date(),
                 created_at=order_date
             )
             db.add(order)

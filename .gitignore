@@ -74,3 +74,4 @@ frontend/*.db
 # Uploaded or generated assets
 backend/static/uploads/
 frontend/public/uploads/
+.gitnexus

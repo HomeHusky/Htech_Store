@@ -14,7 +14,7 @@ class OrderItemPayload(BaseModel):
     variant_id: str | None = None
     qty: int
     price: int
-    days: int | None = None
+    # days removed for tech store logic
 
 class CreateOrderPayload(BaseModel):
     customer: str
@@ -22,7 +22,7 @@ class CreateOrderPayload(BaseModel):
     phone: str
     total: int | None = None
     deposit: int | None = None
-    event_date: str
+    expected_delivery: str
     notes: str | None = None
     items: list[OrderItemPayload]
     voucher_code: str | None = None
@@ -60,7 +60,7 @@ def create_order(payload: CreateOrderPayload, db: Session = Depends(get_db)):
             if p.stock < it.qty:
                 raise HTTPException(400, f"Insufficient stock for {p.id}")
             line_price = p.price
-        line = line_price * it.qty * (it.days or 1)
+        line = line_price * it.qty
         subtotal += line
         products_to_update.append((p, it.qty, variant))
 
@@ -95,7 +95,7 @@ def create_order(payload: CreateOrderPayload, db: Session = Depends(get_db)):
         total=total,
         discount_amount=discount_amount,
         deposit=deposit,
-        event_date=datetime.date.fromisoformat(payload.event_date.split("T")[0]),
+        expected_delivery=datetime.date.fromisoformat(payload.expected_delivery.split("T")[0]),
         notes=payload.notes,
         status=OrderStatus.AWAITING_DEPOSIT
     )
@@ -108,8 +108,8 @@ def create_order(payload: CreateOrderPayload, db: Session = Depends(get_db)):
             product_id=item.product_id,
             qty=item.qty,
             price=item.price,
-            days=item.days,
-            warranty_expiry=(datetime.date.fromisoformat(payload.event_date.split("T")[0]) + datetime.timedelta(days=90 if product and product.category == "repair" else 365))
+            # days removed for tech store logic
+            warranty_expiry=(datetime.date.fromisoformat(payload.expected_delivery.split("T")[0]) + datetime.timedelta(days=90 if product and product.category == "repair" else 365))
         )
         if getattr(item, "variant_id", None):
             oi_kwargs["variant_id"] = item.variant_id

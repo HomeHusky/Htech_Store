@@ -11,9 +11,9 @@ CREATE TABLE IF NOT EXISTS categories (
 '''))
 conn.execute(sa.text('''
 INSERT INTO categories (id, slug, name) VALUES 
-('DRESS', 'dress', '{"vi": "Váy cưới", "en": "Wedding Dress"}'),
-('SUIT', 'suit', '{"vi": "Vest nam", "en": "Suit"}'),
-('PACKAGE', 'package', '{"vi": "Gói chụp ảnh", "en": "Photography Package"}')
+('LAPTOP', 'laptop', '{"vi": "Laptop", "en": "Laptop"}'),
+('MOBILE', 'mobile', '{"vi": "Điện thoại", "en": "Mobile"}'),
+('ACCESSORY', 'accessory', '{"vi": "Phụ kiện", "en": "Accessory"}')
 ON CONFLICT DO NOTHING;
 '''))
 conn.execute(sa.text('''

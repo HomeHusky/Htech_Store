@@ -11,16 +11,33 @@ from app.services.hybrid_search import hybrid_search_products
 router = APIRouter(prefix="/api/products", tags=["products"])
 
 @router.get("", response_model=List[ProductDTO])
-def list_public_products(db: Session = Depends(get_db)):
-    products = get_all_products(db)
+def list_public_products(
+    category: str = None, 
+    trending: bool = None,
+    db: Session = Depends(get_db)
+):
+    products = get_all_products(db, category=category, trending=trending)
     return [
         ProductDTO(
-            id=p.id, slug=p.slug, name=p.name, brand=p.brand, category=p.category,
-            tagline=p.tagline or {"vi": "", "en": ""}, basePrice=p.price, price_per_day=p.price_per_day, 
-            image=p.image, gallery=p.gallery, description=p.description, 
-            details=p.details, highlightSpecs=p.highlight_specs,
-            available=p.available, trending=p.trending, isNew=p.is_new,
-            stock=p.stock, rating=p.rating, reviewCount=p.review_count,
+            id=p.id, 
+            slug=p.slug, 
+            name=p.name, 
+            brand=p.brand, 
+            category=p.category,
+            tagline=p.tagline or {"vi": "", "en": ""}, 
+            basePrice=p.price, 
+            is_trade_in=p.is_trade_in, 
+            image=p.image, 
+            gallery=p.gallery, 
+            description=p.description, 
+            details=p.details, 
+            highlightSpecs=p.highlight_specs,
+            available=p.available, 
+            trending=p.trending, 
+            isNew=p.is_new,
+            stock=p.stock, 
+            rating=p.rating, 
+            reviewCount=p.review_count,
             discountPercent=p.discount,
         ) for p in products
     ]
@@ -36,11 +53,24 @@ def get_product_by_slug(slug: str, db: Session = Depends(get_db)):
     if not p:
         raise HTTPException(404, "Product not found")
     return ProductDTO(
-        id=p.id, slug=p.slug, name=p.name, brand=p.brand, category=p.category,
-        tagline=p.tagline or {"vi": "", "en": ""}, basePrice=p.price, price_per_day=p.price_per_day, 
-        image=p.image, gallery=p.gallery, description=p.description, 
-        details=p.details, highlightSpecs=p.highlight_specs,
-        available=p.available, trending=p.trending, isNew=p.is_new,
-        stock=p.stock, rating=p.rating, reviewCount=p.review_count,
+        id=p.id, 
+        slug=p.slug, 
+        name=p.name, 
+        brand=p.brand, 
+        category=p.category,
+        tagline=p.tagline or {"vi": "", "en": ""}, 
+        basePrice=p.price, 
+        is_trade_in=p.is_trade_in, 
+        image=p.image, 
+        gallery=p.gallery, 
+        description=p.description, 
+        details=p.details, 
+        highlightSpecs=p.highlight_specs,
+        available=p.available, 
+        trending=p.trending, 
+        isNew=p.is_new,
+        stock=p.stock, 
+        rating=p.rating, 
+        reviewCount=p.review_count,
         discountPercent=p.discount,
     )

@@ -28,6 +28,23 @@ alembic upgrade head
 uvicorn app.main:app --reload --port 8000
 ```
 
+## Keep Supabase active
+
+If you use a Supabase project that can go idle, run the keepalive script every 5 days so the database receives a real query:
+
+```powershell
+cd backend
+\keep_supabase_alive.ps1
+```
+
+Recommended Task Scheduler trigger:
+
+```text
+Program/script: powershell.exe
+Arguments: -ExecutionPolicy Bypass -File D:\AI\Sale_Agent\Htech_Store\backend\keep_supabase_alive.ps1
+Trigger: Every 5 days
+```
+
 ## Key modules
 
 - `app/models/models.py`: SQLAlchemy schema including `embedding` and `search_vector`.

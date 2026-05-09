@@ -90,6 +90,23 @@ def get_or_create_ai_settings(db: Session) -> AISetting:
         except ImportError:
             pass
 
+    # Auto-heal legacy studio branding prompt left from older datasets.
+    if setting.system_prompt:
+        prompt_text = setting.system_prompt.lower()
+        legacy_prompt_tokens = (
+            "feli studio",
+            "photography packages",
+            "gói chụp ảnh",
+            "studio services",
+        )
+        if any(token in prompt_text for token in legacy_prompt_tokens):
+            try:
+                from app.services.system_prompt import BASE_SYSTEM_PROMPT
+                setting.system_prompt = BASE_SYSTEM_PROMPT
+                dirty = True
+            except ImportError:
+                pass
+
     if dirty or not setting.id:
         try:
             db.commit()
@@ -149,8 +166,13 @@ def upsert_primary_policy(db: Session, payload: PolicyUpdateDTO) -> StorePolicy:
     return policy
 
 
-def get_all_products(db: Session) -> list[Product]:
-    return db.scalars(select(Product).order_by(Product.created_at.desc())).all()
+def get_all_products(db: Session, category: str = None, trending: bool = None) -> list[Product]:
+    stmt = select(Product)
+    if category:
+        stmt = stmt.where(Product.category == category)
+    if trending is not None:
+        stmt = stmt.where(Product.trending == trending)
+    return db.scalars(stmt.order_by(Product.created_at.desc())).all()
 
 
 def upsert_product(db: Session, payload: ProductDTO) -> Product:
@@ -169,7 +191,7 @@ def upsert_product(db: Session, payload: ProductDTO) -> Product:
     product.category = payload.category
     
     product.price = payload.basePrice
-    product.price_per_day = payload.price_per_day
+    product.is_trade_in = payload.is_trade_in
     product.image = payload.image
     product.gallery = payload.gallery
     product.description = payload.description or {"vi": "", "en": ""}

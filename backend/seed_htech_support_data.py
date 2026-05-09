@@ -246,7 +246,7 @@ def _ensure_order_backfill(db: Session) -> None:
 
         warranty_days = 90 if product.category == "repair" else 365
         if item.warranty_expiry is None:
-            item.warranty_expiry = order.event_date + timedelta(days=warranty_days)
+            item.warranty_expiry = order.expected_delivery + timedelta(days=warranty_days)
 
 
 def _ensure_vouchers(db: Session) -> None:

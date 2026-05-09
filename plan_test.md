@@ -29,7 +29,7 @@ Mục tiêu: Kiểm tra xem Agent có bị "ngây thơ" hoặc tính toán sai k
 Mục tiêu: Đảm bảo Agent không "tám chuyện" ngoài lề và tiết kiệm chi phí LLMs.
 
 * **Hỏi ngoài luồng (Off-topic):** "Thời tiết Đà Nẵng hôm nay thế nào?" hoặc "Dạy tôi nấu món phở."
-    * *Kỳ vọng:* Agent từ chối khéo léo: "Xin lỗi, tôi chỉ hỗ trợ các vấn đề liên quan đến dịch vụ của [Feli Studio/Tech Shop]."
+    * *Kỳ vọng:* Agent từ chối khéo léo: "Xin lỗi, tôi chỉ hỗ trợ các vấn đề liên quan đến dịch vụ của [HTech Store]."
 * **Truy vấn chính sách phức tạp:** "Nếu mình cọc rồi mà bận đột xuất không đến chụp được thì có lấy lại tiền được không?"
     * *Kỳ vọng:* RAG phải tìm thấy mục "Hủy lịch" và trả lời đúng quy định hoàn tiền theo mốc thời gian (ví dụ: báo trước 7 ngày mới được hoàn 100%).
 * **Kiểm tra Token Usage:** Theo dõi trong console/logs xem khi gọi RAG, Agent có bị nhồi quá nhiều văn bản thừa không.

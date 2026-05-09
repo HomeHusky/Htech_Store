@@ -11,7 +11,7 @@ from app.services.system_prompt import build_system_prompt
 
 async def _chat_with_openai(model: str, system_prompt: str, prompt: str) -> str:
     if not settings.openai_api_key:
-        return "OPENAI_API_KEY is not configured."
+        return "Chưa cấu hình OPENAI_API_KEY."
     
     # Check if it's a GitHub PAT
     is_github = settings.openai_api_key.startswith("github_pat_")
@@ -21,7 +21,9 @@ async def _chat_with_openai(model: str, system_prompt: str, prompt: str) -> str:
         model=model, 
         openai_api_key=settings.openai_api_key, 
         base_url=base_url,
-        temperature=0.2
+        temperature=0.2,
+        timeout=20,
+        max_retries=0,
     )
     res = await llm.ainvoke([SystemMessage(content=system_prompt), HumanMessage(content=prompt)])
     return str(res.content).strip()
@@ -33,13 +35,15 @@ async def _chat_with_phi(model: str, system_prompt: str, prompt: str) -> str:
         api_key = settings.phi4_reasoning_api_key or settings.phi4_api_key
         
     if not api_key:
-        return f"API Key for {model} is not configured."
+        return f"Chưa cấu hình API key cho model {model}."
     
     llm = ChatOpenAI(
         model=model, 
         openai_api_key=api_key, 
         base_url="https://models.inference.ai.azure.com",
-        temperature=0.2
+        temperature=0.2,
+        timeout=20,
+        max_retries=0,
     )
     res = await llm.ainvoke([SystemMessage(content=system_prompt), HumanMessage(content=prompt)])
     return str(res.content).strip()
@@ -63,7 +67,15 @@ async def _chat_with_ollama(model: str, system_prompt: str, prompt: str) -> str:
 
 
 async def _chat_with_gemini(model: str, system_prompt: str, prompt: str) -> str:
-    llm = ChatGoogleGenerativeAI(model=model, google_api_key=settings.gemini_api_key, temperature=0.2)
+    if not settings.gemini_api_key:
+        return "Chưa cấu hình GEMINI_API_KEY."
+    llm = ChatGoogleGenerativeAI(
+        model=model,
+        google_api_key=settings.gemini_api_key,
+        temperature=0.2,
+        timeout=20,
+        max_retries=0,
+    )
     res = await llm.ainvoke([SystemMessage(content=system_prompt), HumanMessage(content=prompt)])
     return str(res.content).strip()
 
@@ -83,7 +95,7 @@ async def generate_admin_configured_answer(db: Session, prompt: str, locale: str
         return await _chat_with_gemini(model, system_prompt, prompt)
     except Exception as e:
         print(f"Chat error: {e}")
-        return "I couldn't generate a response from the configured model."
+        return "Mình chưa tạo được câu trả lời từ model đang cấu hình."
 
 
 async def test_admin_configured_model(db: Session, prompt: str) -> dict[str, str]:

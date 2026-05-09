@@ -17,7 +17,7 @@ def manage_booking(db: Session, customer_info: CustomerInfoDTO, items: list[Book
     setting = db.query(StoreSetting).filter_by(id="default").first()
     dep_pct = (setting.deposit_percentage / 100.0) if setting else 0.20
     
-    subtotal = sum(item.price * item.qty * (item.days or 1) for item in items)
+    subtotal = sum(item.price * item.qty for item in items)
     deposit = round(subtotal * dep_pct)
     order_id = str(uuid.uuid4())
     order = Order(
@@ -29,7 +29,7 @@ def manage_booking(db: Session, customer_info: CustomerInfoDTO, items: list[Book
         total=subtotal,
         deposit=deposit,
         status=OrderStatus.AWAITING_DEPOSIT,
-        event_date=customer_info.eventDate,
+        expected_delivery=customer_info.expectedDelivery,
         notes=customer_info.note,
     )
     order.items = [
@@ -38,7 +38,7 @@ def manage_booking(db: Session, customer_info: CustomerInfoDTO, items: list[Book
             product_id=item.productId,
             qty=item.qty,
             price=item.price,
-            days=item.days,
+            # days removed for sales logic
         )
         for item in items
     ]
@@ -51,6 +51,6 @@ def manage_booking(db: Session, customer_info: CustomerInfoDTO, items: list[Book
         deposit=deposit,
         remaining=subtotal - deposit,
         status="Awaiting Deposit",
-        eventDate=customer_info.eventDate,
+        expectedDelivery=customer_info.expectedDelivery,
         paymentLinkOrQr=f"https://img.vietqr.io/image/970436-0123456789-compact2.png?amount={deposit}",
     )

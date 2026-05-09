@@ -32,15 +32,9 @@ def upgrade() -> None:
         if name:
             existing_enum_names.append(name)
 
-    if 'user_role' not in existing_enum_names:
-        user_role = postgresql.ENUM('USER', 'STAFF', 'ADMIN', name='user_role')
-        user_role.create(bind, checkfirst=True)
-    if 'user_permission' not in existing_enum_names:
-        user_perm = postgresql.ENUM('NONE', 'READ_ONLY', 'FULL', name='user_permission')
-        user_perm.create(bind, checkfirst=True)
-    if 'repair_status' not in existing_enum_names:
-        repair_status = postgresql.ENUM('received', 'testing', 'fixing', 'ready', 'delivered', name='repair_status')
-        repair_status.create(bind, checkfirst=True)
+    op.execute("DO $$ BEGIN CREATE TYPE user_role AS ENUM ('USER', 'STAFF', 'ADMIN'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
+    op.execute("DO $$ BEGIN CREATE TYPE user_permission AS ENUM ('NONE', 'READ_ONLY', 'FULL'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
+    op.execute("DO $$ BEGIN CREATE TYPE repair_status AS ENUM ('received', 'testing', 'fixing', 'ready', 'delivered'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
 
     # Users
     if 'users' not in inspector.get_table_names():
@@ -51,8 +45,8 @@ def upgrade() -> None:
             sa.Column('username', sa.String(), nullable=False),
             sa.Column('hashed_password', sa.String(), nullable=True),
             sa.Column('full_name', sa.String(), nullable=True),
-            sa.Column('role', postgresql.ENUM('USER', 'STAFF', 'ADMIN', name='user_role'), nullable=False, server_default='USER'),
-            sa.Column('permission', postgresql.ENUM('NONE', 'READ_ONLY', 'FULL', name='user_permission'), nullable=False, server_default='NONE'),
+            sa.Column('role', postgresql.ENUM('USER', 'STAFF', 'ADMIN', name='user_role', create_type=False), nullable=False, server_default='USER'),
+            sa.Column('permission', postgresql.ENUM('NONE', 'READ_ONLY', 'FULL', name='user_permission', create_type=False), nullable=False, server_default='NONE'),
             sa.Column('google_id', sa.String(), nullable=True),
             sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
             sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
@@ -118,7 +112,7 @@ def upgrade() -> None:
             sa.Column('customer_name', sa.String(), nullable=False),
             sa.Column('device_name', sa.String(), nullable=False),
             sa.Column('issue', sa.Text(), nullable=False),
-            sa.Column('status', postgresql.ENUM('received','testing','fixing','ready','delivered', name='repair_status'), nullable=False, server_default='received'),
+            sa.Column('status', postgresql.ENUM('received','testing','fixing','ready','delivered', name='repair_status', create_type=False), nullable=False, server_default='received'),
             sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
             sa.PrimaryKeyConstraint('id')
         )

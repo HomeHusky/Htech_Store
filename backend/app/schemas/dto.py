@@ -15,7 +15,7 @@ class ProductCardDTO(BaseModel):
     name: LocalizedText | str
     category: str
     price: int
-    pricePerDay: bool = False
+    isTradeIn: bool = False
     image: str
     available: bool
     discount: int = 0
@@ -26,7 +26,7 @@ class BookingItemDTO(BaseModel):
     productId: str
     qty: int = Field(ge=1)
     price: int = Field(ge=0)
-    days: int | None = Field(default=None, ge=1)
+    # days removed for sales logic
 
 
 class CustomerInfoDTO(BaseModel):
@@ -34,7 +34,7 @@ class CustomerInfoDTO(BaseModel):
     email: str
     phone: str
     note: str | None = None
-    eventDate: date
+    expectedDelivery: date
 
 
 class BookingSummaryDTO(BaseModel):
@@ -44,7 +44,7 @@ class BookingSummaryDTO(BaseModel):
     deposit: int
     remaining: int
     status: str
-    eventDate: date
+    expectedDelivery: date
     paymentLinkOrQr: str
 
 

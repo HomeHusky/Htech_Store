@@ -77,7 +77,7 @@ class ProductDTO(BaseModel):
     category: str = Field(..., min_length=1)
     tagline: dict = {}
     basePrice: int = Field(..., gt=0, alias="basePrice")
-    price_per_day: bool = False
+    is_trade_in: bool = False
     image: str = Field(..., min_length=1)
     gallery: list[str] = []
     description: dict
@@ -124,7 +124,7 @@ class OrderItemDTO(BaseModel):
     name: str | None = None
     qty: int = Field(..., gt=0)
     price: int = Field(..., ge=0)
-    days: int | None = None
+    # days removed for trade-in logic
 
 
 class OrderDTO(BaseModel):
@@ -136,7 +136,7 @@ class OrderDTO(BaseModel):
     total: int
     deposit: int
     status: str
-    event_date: str
+    expected_delivery: str
     payment_proof: str | None = None
     items: list[OrderItemDTO]
 
@@ -204,3 +204,37 @@ class StoreSettingsDTO(BaseModel):
 class TelegramTestDTO(BaseModel):
     token: str
     chat_id: str
+
+
+class PromotionDTO(BaseModel):
+    id: int | None = None
+    code: str
+    name: str
+    type: str
+    value: int
+    min_order: int = 0
+    max_discount: int = 0
+    usage_limit: int = 100
+    used_count: int = 0
+    start_date: str
+    end_date: str
+    status: str = "active"
+    applicable_products: str = "all"
+    category: str | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class PromotionCreateDTO(BaseModel):
+    code: str
+    name: str
+    type: str
+    value: int
+    min_order: int = 0
+    max_discount: int = 0
+    usage_limit: int = 100
+    start_date: str
+    end_date: str
+    applicable_products: str = "all"
+    category: str | None = None
