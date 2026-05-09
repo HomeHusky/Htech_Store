@@ -1,0 +1,76 @@
+# Environment variables
+.env
+.env.*
+backend/.env
+backend/.env.*
+frontend/.env
+frontend/.env.*
+!.env.example
+!.env.sample
+!.env.local.example
+open-design/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+.venv/
+venv/
+env/
+backend/.venv/
+backend/__pycache__/
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/.ruff_cache/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+dist/
+build/
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/dist/
+frontend/build/
+
+# Logs and runtime files
+*.log
+logs/
+*.pid
+*.seed
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS / editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Database and local state
+*.sqlite
+*.sqlite3
+*.db
+*.bak
+backend/*.sqlite
+backend/*.sqlite3
+backend/*.db
+frontend/*.sqlite
+frontend/*.sqlite3
+frontend/*.db
+
+# Uploaded or generated assets
+backend/static/uploads/
+frontend/public/uploads/
