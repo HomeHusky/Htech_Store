@@ -3,10 +3,11 @@
 import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Search, X, Clock, TrendingUp, ArrowRight } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import { useI18n } from '@/lib/i18n'
-import { allProducts } from '@/lib/store'
+import type { Product } from '@/lib/store'
+import { searchProducts } from '@/lib/products-api'
 
 interface SearchModalProps {
   open: boolean
@@ -18,24 +19,56 @@ const popularSearches = ['iPhone', 'MacBook', 'Gaming Laptop', 'AirPods']
 
 export function SearchModal({ open, onClose }: SearchModalProps) {
   const [query, setQuery] = useState('')
+  const [results, setResults] = useState<Product[]>([])
+  const [loading, setLoading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
-  const { t } = useI18n()
-
-  const filteredProducts = query.length > 0
-    ? allProducts.filter(p =>
-        p.name.toLowerCase().includes(query.toLowerCase()) ||
-        p.subtitle.toLowerCase().includes(query.toLowerCase()) ||
-        p.category.toLowerCase().includes(query.toLowerCase())
-      )
-    : []
+  const router = useRouter()
+  const { locale, t } = useI18n()
 
   useEffect(() => {
     if (open) {
       setTimeout(() => inputRef.current?.focus(), 100)
     } else {
       setQuery('')
+      setResults([])
     }
   }, [open])
+
+  useEffect(() => {
+    const trimmed = query.trim()
+    if (!open || trimmed.length < 2) {
+      setResults([])
+      setLoading(false)
+      return
+    }
+
+    let cancelled = false
+    setLoading(true)
+    const timeout = window.setTimeout(() => {
+      searchProducts(trimmed, { locale, limit: 8 })
+        .then((items) => {
+          if (!cancelled) setResults(items)
+        })
+        .catch(() => {
+          if (!cancelled) setResults([])
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false)
+        })
+    }, 250)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timeout)
+    }
+  }, [open, query, locale])
+
+  const submitSearch = () => {
+    const trimmed = query.trim()
+    if (!trimmed) return
+    onClose()
+    router.push(`/products?search=${encodeURIComponent(trimmed)}`)
+  }
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -72,6 +105,9 @@ export function SearchModal({ open, onClose }: SearchModalProps) {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') submitSearch()
+              }}
               placeholder={t('search.placeholder')}
               className="flex-1 bg-transparent text-foreground placeholder:text-muted-foreground outline-none text-base"
             />
@@ -133,15 +169,20 @@ export function SearchModal({ open, onClose }: SearchModalProps) {
                   </div>
                 </div>
               </div>
-            ) : filteredProducts.length > 0 ? (
+            ) : loading ? (
+              <div className="p-10 text-center">
+                <Search className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3 animate-pulse" />
+                <p className="text-muted-foreground">Đang tìm sản phẩm...</p>
+              </div>
+            ) : results.length > 0 ? (
               <div className="py-2">
                 <p className="px-5 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  {t('search.results')} ({filteredProducts.length})
+                  {t('search.results')} ({results.length})
                 </p>
-                {filteredProducts.map((product) => (
+                {results.map((product) => (
                   <Link
                     key={product.id}
-                    href={`/products/${product.id}`}
+                    href={`/products/${product.slug || product.id}`}
                     onClick={onClose}
                     className="flex items-center gap-4 px-5 py-3 hover:bg-muted transition-colors group"
                   >

@@ -31,14 +31,17 @@ function buildUrl(path: string, params?: RequestConfig['params']) {
 
 async function request<T = any>(method: string, path: string, body?: unknown, config: RequestConfig = {}): Promise<ApiResponse<T>> {
   const { params, headers, ...init } = config
+  const token = typeof window !== 'undefined' ? localStorage.getItem('htech-auth-token') : null
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData
   const response = await fetch(buildUrl(path, params), {
     ...init,
     method,
     headers: {
-      ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      ...(body !== undefined && !isFormData ? { 'Content-Type': 'application/json' } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body: body !== undefined ? (isFormData ? body : JSON.stringify(body)) : undefined,
   })
 
   const contentType = response.headers.get('content-type') ?? ''

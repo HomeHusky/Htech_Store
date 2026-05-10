@@ -32,9 +32,10 @@ from app.services.admin_service import (
 from app.services.model_catalog import get_model_catalog
 from app.services.chat_models import generate_answer_with_config, test_admin_configured_model
 from app.services.hybrid_search import hybrid_search_policies, hybrid_search_products
-from app.services.telegram import notify_human_support
+from app.services.telegram import notify_human_support, send_telegram_message
+from app.api.auth import require_admin_access, require_full_admin
 
-router = APIRouter(prefix="/api/admin", tags=["admin"])
+router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(require_admin_access)])
 
 UPLOAD_DIR = Path("static/uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -367,9 +368,14 @@ def list_orders(db: Session = Depends(get_db)):
     ]
 
 @router.patch("/orders/{order_id}/status", response_model=OrderDTO)
-def patch_order_status(order_id: str, payload: OrderStatusUpdateDTO, db: Session = Depends(get_db)):
+async def patch_order_status(order_id: str, payload: OrderStatusUpdateDTO, db: Session = Depends(get_db)):
     o = update_order_status(db, order_id, payload.status)
     if not o: raise HTTPException(404, "Order not found")
+    if o.status in {OrderStatus.PAID, OrderStatus.COMPLETED, OrderStatus.CANCELLED}:
+        await notify_human_support(
+            f"[HTech] Đơn {o.order_number} được cập nhật trạng thái: {o.status.value}.",
+            db=db,
+        )
     return OrderDTO(
         id=o.id, order_number=o.order_number, customer=o.customer,
         email=o.email, phone=o.phone, total=o.total, deposit=o.deposit,
@@ -390,12 +396,18 @@ def list_users(db: Session = Depends(get_db)):
     return [UserDTO(id=u.id, email=u.email, username=u.username, full_name=u.full_name, role=u.role, permission=u.permission) for u in users]
 
 @router.post("/users", response_model=UserDTO)
-def create_user(payload: UserDTO, db: Session = Depends(get_db)):
+def create_user(payload: UserDTO, db: Session = Depends(get_db), _admin: User = Depends(require_full_admin)):
+    u = upsert_user(db, payload)
+    return UserDTO(id=u.id, email=u.email, username=u.username, full_name=u.full_name, role=u.role, permission=u.permission)
+
+@router.put("/users/{user_id}", response_model=UserDTO)
+def update_user(user_id: str, payload: UserDTO, db: Session = Depends(get_db), _admin: User = Depends(require_full_admin)):
+    payload.id = user_id
     u = upsert_user(db, payload)
     return UserDTO(id=u.id, email=u.email, username=u.username, full_name=u.full_name, role=u.role, permission=u.permission)
 
 @router.delete("/users/{user_id}")
-def remove_user(user_id: str, db: Session = Depends(get_db)):
+def remove_user(user_id: str, db: Session = Depends(get_db), _admin: User = Depends(require_full_admin)):
     success, reason = delete_user(db, user_id)
     if success: return {"success": True}
     raise HTTPException(404 if reason == "not_found" else 409)
@@ -427,7 +439,7 @@ def update_repair_status_endpoint(repair_id: str, status: str, db: Session = Dep
     return {"success": True}
 
 @router.post("/repairs", response_model=RepairDTO)
-def create_repair_endpoint(payload: RepairDTO, db: Session = Depends(get_db)):
+async def create_repair_endpoint(payload: RepairDTO, db: Session = Depends(get_db)):
     r = Repair(
         id=str(uuid.uuid4()),
         customer_name=payload.customer_name,
@@ -440,6 +452,10 @@ def create_repair_endpoint(payload: RepairDTO, db: Session = Depends(get_db)):
         db.add(RepairNote(id=str(uuid.uuid4()), repair_id=r.id, content=note.content))
     db.commit()
     db.refresh(r)
+    await notify_human_support(
+        f"[HTech] Ticket sửa chữa mới: {r.customer_name} - {r.device_name}. Vấn đề: {r.issue}",
+        db=db,
+    )
     return RepairDTO(
         id=r.id, customer_name=r.customer_name, device_name=r.device_name,
         issue=r.issue, status=r.status.value, created_at=r.created_at.isoformat(),
@@ -538,16 +554,14 @@ def update_store_settings(payload: StoreSettingsDTO, db: Session = Depends(get_d
 
 @router.post("/test-telegram")
 async def test_telegram(payload: TelegramTestDTO):
-    import httpx
-    url = f"https://api.telegram.org/bot{payload.token}/sendMessage"
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            res = await client.post(url, json={
-                "chat_id": payload.chat_id,
-                "text": "🔔 Đây là tin nhắn thử nghiệm từ hệ thống H-TECH."
-            })
-            if res.status_code == 200:
-                return {"success": True}
-            raise HTTPException(400, "Telegram API returned error")
-    except Exception as e:
-        raise HTTPException(500, str(e))
+    token = payload.token.strip()
+    if payload.bot_id and not token.startswith(f"{payload.bot_id.strip()}:"):
+        raise HTTPException(400, "Telegram Bot ID không khớp với Bot Token")
+    ok = await send_telegram_message(
+        "[HTech] Đây là tin nhắn thử nghiệm từ hệ thống H-TECH.",
+        token=token,
+        chat_id=payload.chat_id,
+    )
+    if ok:
+        return {"success": True}
+    raise HTTPException(400, "Không gửi được Telegram. Kiểm tra bot token và chat ID.")

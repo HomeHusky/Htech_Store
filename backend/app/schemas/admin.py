@@ -18,7 +18,7 @@ class ModelCatalogResponse(BaseModel):
 
 
 class CategoryDTO(BaseModel):
-    id: str = Field(..., min_length=2, pattern="^[a-zA-Z0-9_]+$")
+    id: str = Field(..., min_length=2, pattern="^[a-zA-Z0-9_-]+$")
     slug: str = Field(..., min_length=2)
     name: dict = Field(...)
 
@@ -239,6 +239,7 @@ class StoreSettingsDTO(BaseModel):
 
 
 class TelegramTestDTO(BaseModel):
+    bot_id: str | None = None
     token: str
     chat_id: str
 

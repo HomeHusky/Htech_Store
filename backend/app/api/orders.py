@@ -6,6 +6,7 @@ from app.models.models import Order, OrderStatus, OrderItem, Product, StoreSetti
 import uuid
 import datetime
 from app.services.vouchers import verify_voucher
+from app.services.telegram import notify_human_support
 
 router = APIRouter(prefix="/api/orders", tags=["orders"])
 
@@ -28,7 +29,7 @@ class CreateOrderPayload(BaseModel):
     voucher_code: str | None = None
 
 @router.post("")
-def create_order(payload: CreateOrderPayload, db: Session = Depends(get_db)):
+async def create_order(payload: CreateOrderPayload, db: Session = Depends(get_db)):
     # Server-side compute subtotal, apply voucher, compute deposit, validate stock
     subtotal = 0
     products_to_update = []
@@ -127,17 +128,37 @@ def create_order(payload: CreateOrderPayload, db: Session = Depends(get_db)):
             db.add(p)
 
     db.commit()
+    await notify_human_support(
+        (
+            f"[HTech] Đơn hàng mới {o.order_number}\n"
+            f"Khách: {o.customer} - {o.phone}\n"
+            f"Tổng: {total:,} VND | Cọc: {deposit:,} VND"
+        ),
+        db=db,
+    )
+    for product, _, variant in products_to_update:
+        remaining_stock = variant.stock if variant else product.stock
+        if remaining_stock <= 5:
+            product_name = product.name.get("vi", product.slug) if isinstance(product.name, dict) else product.name
+            await notify_human_support(
+                f"[HTech] Cảnh báo tồn kho: {product_name} còn {remaining_stock} sản phẩm.",
+                db=db,
+            )
     return {"id": o.id, "order_number": o.order_number, "total": total, "deposit": deposit}
 
 class ProofPayload(BaseModel):
     proof: str
 
 @router.patch("/{order_id}/proof")
-def upload_proof(order_id: str, payload: ProofPayload, db: Session = Depends(get_db)):
+async def upload_proof(order_id: str, payload: ProofPayload, db: Session = Depends(get_db)):
     o = db.query(Order).filter(Order.id == order_id).first()
     if not o:
         raise HTTPException(404, "Order not found")
     o.payment_proof = payload.proof
     o.status = OrderStatus.PAID
     db.commit()
+    await notify_human_support(
+        f"[HTech] Đơn {o.order_number} đã gửi bằng chứng thanh toán. Trạng thái: PAID.",
+        db=db,
+    )
     return {"success": True, "status": o.status.value}

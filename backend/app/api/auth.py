@@ -12,6 +12,7 @@ from app.core.config import settings
 from sqlalchemy import select
 import os
 import uuid
+from urllib.parse import urlencode
 
 router = APIRouter()
 
@@ -20,6 +21,61 @@ def create_access_token(data: dict):
     expire = datetime.utcnow() + timedelta(minutes=settings.jwt_expire_minutes)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+
+
+def _user_payload(user: User) -> dict:
+    return {
+        "id": user.id,
+        "email": user.email,
+        "name": user.full_name,
+        "username": user.username,
+        "role": user.role.value,
+        "permission": user.permission.value,
+    }
+
+
+def _token_payload(user: User) -> dict:
+    return {
+        "sub": user.id,
+        "email": user.email,
+        "name": user.full_name,
+        "role": user.role.value,
+        "permission": user.permission.value,
+    }
+
+
+def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing token")
+
+    token = auth_header.split(" ", 1)[1]
+    try:
+        payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        user = db.get(User, user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return user
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+
+def require_admin_access(user: User = Depends(get_current_user)) -> User:
+    if user.role not in {UserRole.ADMIN, UserRole.STAFF} or user.permission == UserPermission.NONE:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user
+
+
+def require_full_admin(user: User = Depends(require_admin_access)) -> User:
+    if user.role != UserRole.ADMIN or user.permission != UserPermission.FULL:
+        raise HTTPException(status_code=403, detail="Full admin permission required")
+    return user
 
 @router.post("/login")
 def login(payload: LoginRequestDTO, db: Session = Depends(get_db)):
@@ -30,30 +86,39 @@ def login(payload: LoginRequestDTO, db: Session = Depends(get_db)):
     )
     
     if not user:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        bootstrap_password = os.getenv("ADMIN_PASSWORD", "admin123")
+        admin_exists = db.scalar(select(User).where(User.role == UserRole.ADMIN))
+        if (
+            settings.app_env == "development"
+            and not admin_exists
+            and payload.identifier in {"admin", "admin@htech.vn"}
+            and payload.password == bootstrap_password
+        ):
+            user = User(
+                id=str(uuid.uuid4()),
+                email=os.getenv("ADMIN_EMAIL", "admin@htech.vn"),
+                username=os.getenv("ADMIN_USERNAME", "admin"),
+                hashed_password=get_password_hash(bootstrap_password),
+                full_name="Quản trị viên",
+                role=UserRole.ADMIN,
+                permission=UserPermission.FULL,
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        else:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
     
     # Check password
-    if user.hashed_password != get_password_hash(payload.password):
+    if not user.hashed_password or user.hashed_password != get_password_hash(payload.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
         
-    token = create_access_token({
-        "sub": user.id,
-        "email": user.email,
-        "name": user.full_name,
-        "role": user.role.value,
-        "permission": user.permission.value
-    })
+    token = create_access_token(_token_payload(user))
     
     return {
         "access_token": token,
         "token_type": "bearer",
-        "user": {
-            "id": user.id,
-            "email": user.email,
-            "name": user.full_name,
-            "role": user.role.value,
-            "permission": user.permission.value
-        }
+        "user": _user_payload(user)
     }
 
 @router.get("/google/login")
@@ -64,8 +129,15 @@ def google_login(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Google Client ID not configured")
     
     redirect_uri = os.getenv("NEXT_PUBLIC_BACKEND_URL", "http://localhost:8000") + "/api/auth/google/callback"
-    
-    url = f"https://accounts.google.com/o/oauth2/v2/auth?client_id={client_id}&response_type=code&scope=openid%20email%20profile&redirect_uri={redirect_uri}"
+
+    params = {
+        "client_id": client_id,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "redirect_uri": redirect_uri,
+        "prompt": "select_account",
+    }
+    url = f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}"
     return RedirectResponse(url)
 
 @router.get("/google/callback")
@@ -73,6 +145,8 @@ async def google_callback(code: str, request: Request, db: Session = Depends(get
     settings_ai = get_or_create_ai_settings(db)
     client_id = settings_ai.google_client_id or os.getenv("CLIENT_ID")
     client_secret = settings_ai.google_client_secret or os.getenv("CLIENT_SECRET")
+    if not client_id or not client_secret:
+        raise HTTPException(status_code=500, detail="Google OAuth credentials not configured")
     redirect_uri = os.getenv("NEXT_PUBLIC_BACKEND_URL", "http://localhost:8000") + "/api/auth/google/callback"
     
     async with httpx.AsyncClient() as client:
@@ -108,44 +182,18 @@ async def google_callback(code: str, request: Request, db: Session = Depends(get
             username=email
         )
         user = upsert_user(db, payload)
+    google_id = user_data.get("id")
+    if google_id and user.google_id != google_id:
+        user.google_id = google_id
+        db.commit()
+        db.refresh(user)
         
-    token = create_access_token({
-        "sub": user.id,
-        "email": user.email,
-        "name": user.full_name,
-        "role": user.role.value,
-        "permission": user.permission.value
-    })
+    token = create_access_token(_token_payload(user))
     
     frontend_url = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")[0]
-    return RedirectResponse(f"{frontend_url}/login?token={token}")
+    return RedirectResponse(f"{frontend_url}/login?{urlencode({'token': token})}")
 
 
 @router.get("/me")
-async def get_me(request: Request, db: Session = Depends(get_db)):
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Missing token")
-    
-    token = auth_header.split(" ")[1]
-    try:
-        payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
-        user_id = payload.get("sub")
-        if not user_id:
-            raise HTTPException(401, "Invalid token")
-        
-        user = db.get(User, user_id)
-        if not user:
-            raise HTTPException(404, "User not found")
-            
-        return {
-            "id": user.id,
-            "email": user.email,
-            "name": user.full_name,
-            "role": user.role.value,
-            "permission": user.permission.value
-        }
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(401, "Token expired")
-    except jwt.PyJWTError:
-        raise HTTPException(401, "Invalid token")
+async def get_me(user: User = Depends(get_current_user)):
+    return _user_payload(user)

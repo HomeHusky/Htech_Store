@@ -174,7 +174,7 @@ export function Navbar() {
 
               {/* Account */}
               <Link
-                href="/admin"
+                href="/login"
                 className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all hidden sm:flex"
                 aria-label={t('nav.account')}
               >
@@ -222,7 +222,7 @@ export function Navbar() {
             ))}
             <div className="mt-2 pt-2 border-t border-border">
               <Link
-                href="/admin"
+                href="/login"
                 onClick={() => setMobileOpen(false)}
                 className="px-4 py-3 rounded-xl text-sm font-medium text-accent hover:bg-blue-light transition-all flex items-center gap-2"
               >

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -43,13 +44,13 @@ def list_public_products(
     ]
 
 @router.get("/search")
-def search_products(q: str, db: Session = Depends(get_db)):
-    products = hybrid_search_products(db, q)
+def search_products(q: str, category: str = None, limit: int = None, db: Session = Depends(get_db)):
+    products = hybrid_search_products(db, q, category=category or None, limit=limit)
     return {"products": products}
 
 @router.get("/{slug}", response_model=ProductDTO)
 def get_product_by_slug(slug: str, db: Session = Depends(get_db)):
-    p = db.query(Product).filter(Product.slug == slug).first()
+    p = db.query(Product).filter(or_(Product.slug == slug, Product.id == slug)).first()
     if not p:
         raise HTTPException(404, "Product not found")
     return ProductDTO(

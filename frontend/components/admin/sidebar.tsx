@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard,
   Package,
@@ -20,13 +20,16 @@ import {
   FolderTree,
   Sun,
   Moon,
+  ShieldUser,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTheme } from '@/lib/theme'
 import { useI18n } from '@/lib/i18n'
+import { clearToken } from '@/lib/auth'
 
 export function AdminSidebar() {
   const pathname = usePathname()
+  const router = useRouter()
   const { theme, toggleTheme } = useTheme()
   const { t } = useI18n()
 
@@ -89,7 +92,17 @@ export function AdminSidebar() {
       href: '/admin/notifications',
       icon: Bell,
     },
+    {
+      label: 'Tài khoản',
+      href: '/admin/accounts',
+      icon: ShieldUser,
+    },
   ]
+
+  const signOut = () => {
+    clearToken()
+    router.replace('/login')
+  }
 
   return (
     <aside className="fixed inset-y-0 left-0 z-40 w-60 bg-sidebar flex flex-col border-r border-sidebar-border">
@@ -174,7 +187,7 @@ export function AdminSidebar() {
           <Store className="w-4 h-4" />
           {t('admin.view_store')}
         </Link>
-        <button className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all w-full text-left">
+        <button onClick={signOut} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all w-full text-left">
           <LogOut className="w-4 h-4" />
           {t('admin.sign_out')}
         </button>

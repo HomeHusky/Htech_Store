@@ -8,6 +8,7 @@ export type ProductDTO = {
   category: string
   tagline?: { vi?: string; en?: string }
   basePrice: number
+  is_trade_in?: boolean
   image: string
   gallery?: string[]
   description?: { vi?: string; en?: string } | string
@@ -20,6 +21,20 @@ export type ProductDTO = {
   rating: number
   reviewCount: number
   discountPercent: number
+}
+
+export type ProductSearchRow = {
+  id: string
+  slug: string
+  name: { vi?: string; en?: string } | string
+  category: string
+  price: number
+  is_trade_in?: boolean
+  image: string
+  available: boolean
+  discount: number
+  details?: Record<string, unknown>
+  search_score?: number
 }
 
 export type StoreProduct = {
@@ -81,6 +96,27 @@ function specsFromDetails(details?: Record<string, unknown>, highlightSpecs?: st
   return specs
 }
 
+function normalizeCategory(value?: string | null) {
+  const key = (value || '').trim().toLowerCase()
+  const aliases: Record<string, string> = {
+    all: '',
+    iphone: 'phone',
+    smartphone: 'phone',
+    mobile: 'phone',
+    phone: 'phone',
+    macbook: 'laptop',
+    laptop: 'laptop',
+    gaming: 'pc',
+    pcgaming: 'pc',
+    pc: 'pc',
+    accessories: 'accessory',
+    accessory: 'accessory',
+    phukien: 'accessory',
+    tablet: 'tablet',
+  }
+  return aliases[key] ?? key
+}
+
 export function toStoreProduct(product: ProductDTO, locale: 'vi' | 'en' = 'vi'): StoreProduct {
   const salePrice = product.basePrice
   const originalPrice = product.discountPercent > 0 ? Math.round(salePrice / (1 - product.discountPercent / 100)) : undefined
@@ -111,8 +147,55 @@ export async function fetchProducts(params?: { category?: string; trending?: boo
   const { locale, ...apiParams } = params || {}
   const storedLocale = typeof window !== 'undefined' ? localStorage.getItem('htech-locale') : null
   const effectiveLocale = locale || (storedLocale === 'en' ? 'en' : 'vi')
-  const { data } = await api.get<ProductDTO[]>('/products', { params: apiParams })
-  return data.map((product) => toStoreProduct(product, effectiveLocale))
+  const category = normalizeCategory(apiParams.category)
+  const { data } = await api.get<ProductDTO[]>('/products', {
+    params: { ...apiParams, category: category || undefined },
+  })
+  const products = category
+    ? data.filter((product) => normalizeCategory(product.category) === category)
+    : data
+  return products.map((product) => toStoreProduct(product, effectiveLocale))
+}
+
+export async function fetchProduct(slugOrId: string, locale?: 'vi' | 'en') {
+  const storedLocale = typeof window !== 'undefined' ? localStorage.getItem('htech-locale') : null
+  const effectiveLocale = locale || (storedLocale === 'en' ? 'en' : 'vi')
+  const { data } = await api.get<ProductDTO>(`/products/${encodeURIComponent(slugOrId)}`)
+  return toStoreProduct(data, effectiveLocale)
+}
+
+function searchRowToStoreProduct(product: ProductSearchRow, locale: 'vi' | 'en' = 'vi'): StoreProduct {
+  return toStoreProduct({
+    id: product.id,
+    slug: product.slug,
+    name: product.name,
+    brand: typeof product.details?.brand === 'string' ? product.details.brand : 'Htech',
+    category: product.category,
+    tagline: {},
+    basePrice: product.price,
+    image: product.image,
+    gallery: [],
+    description: {},
+    details: product.details || {},
+    highlightSpecs: [],
+    available: product.available,
+    trending: false,
+    isNew: false,
+    stock: 0,
+    rating: 5,
+    reviewCount: 0,
+    discountPercent: product.discount || 0,
+  }, locale)
+}
+
+export async function searchProducts(query: string, params?: { category?: string; locale?: 'vi' | 'en'; limit?: number }) {
+  const storedLocale = typeof window !== 'undefined' ? localStorage.getItem('htech-locale') : null
+  const effectiveLocale = params?.locale || (storedLocale === 'en' ? 'en' : 'vi')
+  const category = normalizeCategory(params?.category)
+  const { data } = await api.get<{ products: ProductSearchRow[] }>('/products/search', {
+    params: { q: query, category: category || undefined, limit: params?.limit },
+  })
+  return data.products.map((product) => searchRowToStoreProduct(product, effectiveLocale))
 }
 
 export async function fetchAdminProducts() {

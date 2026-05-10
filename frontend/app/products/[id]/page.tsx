@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, use } from 'react'
+import { useEffect, useState, use } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
 import {
   ChevronLeft,
   Star,
@@ -23,26 +22,56 @@ import { cn } from '@/lib/utils'
 import { Navbar } from '@/components/storefront/navbar'
 import { Footer } from '@/components/storefront/footer'
 import { useI18n } from '@/lib/i18n'
-import { useCart, allProducts } from '@/lib/store'
+import { useCart, type Product } from '@/lib/store'
+import { fetchProduct, fetchProducts } from '@/lib/products-api'
 
 export default function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
-  const product = allProducts.find(p => p.id === id || p.slug === id)
-  
+  const [product, setProduct] = useState<Product | null>(null)
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [selectedColor, setSelectedColor] = useState(0)
   const [quantity, setQuantity] = useState(1)
   const [wished, setWished] = useState(false)
   const [addedToCart, setAddedToCart] = useState(false)
   const [activeTab, setActiveTab] = useState<'specs' | 'description'>('specs')
   
-  const { t } = useI18n()
+  const { locale, t } = useI18n()
   const { addItem } = useCart()
 
-  if (!product) {
-    notFound()
-  }
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    setLoadError('')
+
+    fetchProduct(id, locale)
+      .then(async (item) => {
+        if (cancelled) return
+        setProduct(item)
+        const products = await fetchProducts({ locale })
+        if (!cancelled) {
+          setRelatedProducts(
+            products
+              .filter((candidate) => candidate.category === item.category && candidate.id !== item.id)
+              .slice(0, 4),
+          )
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLoadError('Không tìm thấy sản phẩm này.')
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [id, locale])
 
   const handleAddToCart = () => {
+    if (!product) return
     for (let i = 0; i < quantity; i++) {
       addItem(product, selectedColor)
     }
@@ -50,9 +79,33 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     setTimeout(() => setAddedToCart(false), 2000)
   }
 
-  const relatedProducts = allProducts
-    .filter(p => p.category === product.category && p.id !== product.id)
-    .slice(0, 4)
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-background">
+        <Navbar />
+        <div className="max-w-7xl mx-auto px-4 py-16 text-sm text-muted-foreground sm:px-6 lg:px-8">
+          Đang tải chi tiết sản phẩm...
+        </div>
+        <Footer />
+      </main>
+    )
+  }
+
+  if (!product) {
+    return (
+      <main className="min-h-screen bg-background">
+        <Navbar />
+        <div className="max-w-7xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
+          <p className="text-lg font-semibold text-foreground">{loadError || 'Không tìm thấy sản phẩm.'}</p>
+          <Link href="/products" className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-accent">
+            <ChevronLeft className="h-4 w-4" />
+            Quay lại sản phẩm
+          </Link>
+        </div>
+        <Footer />
+      </main>
+    )
+  }
 
   return (
     <main className="min-h-screen bg-background">
@@ -85,7 +138,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
         <div className="grid lg:grid-cols-2 gap-10 lg:gap-16">
           {/* Image */}
           <div className="relative">
-            <div className="aspect-square rounded-3xl bg-surface overflow-hidden">
+            <div className="relative aspect-square rounded-3xl bg-surface overflow-hidden">
               <Image
                 src={product.image}
                 alt={product.name}
@@ -350,7 +403,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
               {relatedProducts.map((p) => (
-                <Link key={p.id} href={`/products/${p.id}`}>
+                <Link key={p.id} href={`/products/${p.slug || p.id}`}>
                   <article className="group bg-card rounded-2xl border border-border overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
                     <div className="relative h-44 bg-surface overflow-hidden">
                       <Image

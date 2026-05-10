@@ -1,18 +1,45 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { Check, Layout, Monitor, Moon, Palette, RotateCcw, Save, Sun, Type } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Check, Layout, Monitor, Moon, Palette, Plus, RotateCcw, Save, Sun, Type } from 'lucide-react'
 import { AdminHeader } from '@/components/admin/header'
+import api from '@/lib/api'
 import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
 
-const colorPresets = [
+type ColorPreset = {
+  id?: string
+  name: string
+  primary: string
+  surface: string
+}
+
+const colorPresets: ColorPreset[] = [
   { name: 'Royal Blue', primary: '#0071e3', surface: '#f5f9ff' },
   { name: 'Graphite', primary: '#111827', surface: '#f7f7f8' },
   { name: 'Emerald', primary: '#059669', surface: '#f1fbf7' },
   { name: 'Ruby', primary: '#e11d48', surface: '#fff5f7' },
   { name: 'Teal', primary: '#0f766e', surface: '#effafa' },
 ]
+
+type ThemePaletteDTO = {
+  id?: string
+  name: string
+  is_preset: boolean
+  light_main: string
+  light_sub: string
+  light_accent: string
+  dark_main: string
+  dark_sub: string
+  dark_accent: string
+}
+
+type ThemeSettingsResponse = {
+  active_palette_id: string | null
+  palettes: ThemePaletteDTO[]
+}
+
+const customColorsStorageKey = 'htech-custom-brand-colors'
 
 const fontPresets = [
   { name: 'Inter', value: 'Inter, system-ui, sans-serif', sample: 'HTech Store' },
@@ -33,15 +60,74 @@ export default function AppearancePage() {
   const [selectedLayout, setSelectedLayout] = useState('default')
   const [announcementEnabled, setAnnouncementEnabled] = useState(true)
   const [compactCards, setCompactCards] = useState(false)
+  const [backendColors, setBackendColors] = useState<ColorPreset[]>([])
+  const [customColors, setCustomColors] = useState<ColorPreset[]>([])
+  const [customColorName, setCustomColorName] = useState('')
+  const [customPrimary, setCustomPrimary] = useState('#0ea5e9')
+  const [customSurface, setCustomSurface] = useState('#f0f9ff')
   const [saved, setSaved] = useState(false)
 
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(customColorsStorageKey)
+      if (stored) setCustomColors(JSON.parse(stored))
+    } catch {
+      setCustomColors([])
+    }
+    api.get<ThemeSettingsResponse>('/admin/theme')
+      .then(({ data }) => {
+        const palettes = data.palettes.map((palette) => ({
+          id: palette.id,
+          name: palette.name,
+          primary: palette.light_accent,
+          surface: palette.light_main,
+        }))
+        setBackendColors(palettes)
+        const activeIndex = palettes.findIndex((palette) => palette.id === data.active_palette_id)
+        if (activeIndex >= 0) setSelectedColor(colorPresets.length + activeIndex)
+      })
+      .catch(() => undefined)
+  }, [])
+
+  const allColorPresets = useMemo(() => [...colorPresets, ...backendColors, ...customColors], [backendColors, customColors])
+
   const preview = useMemo(() => ({
-    color: colorPresets[selectedColor],
+    color: allColorPresets[selectedColor] ?? allColorPresets[0],
     font: fontPresets[selectedFont],
     layout: layoutPresets.find((item) => item.value === selectedLayout) ?? layoutPresets[0],
-  }), [selectedColor, selectedFont, selectedLayout])
+  }), [allColorPresets, selectedColor, selectedFont, selectedLayout])
 
-  const handleSave = () => {
+  const addCustomColor = async () => {
+    const name = customColorName.trim() || `Brand ${customColors.length + 1}`
+    const color = { name, primary: customPrimary, surface: customSurface }
+    try {
+      const { data } = await api.post<ThemePaletteDTO>('/admin/theme/palettes', {
+        name,
+        is_preset: false,
+        light_main: customSurface,
+        light_sub: '#111827',
+        light_accent: customPrimary,
+        dark_main: '#0f172a',
+        dark_sub: '#111827',
+        dark_accent: customPrimary,
+      })
+      const savedColor = { id: data.id, name: data.name, primary: data.light_accent, surface: data.light_main }
+      setBackendColors((current) => {
+        const next = [...current, savedColor]
+        setSelectedColor(colorPresets.length + next.length - 1)
+        return next
+      })
+    } catch {
+      const next = [...customColors, color]
+      setCustomColors(next)
+      localStorage.setItem(customColorsStorageKey, JSON.stringify(next))
+      setSelectedColor(colorPresets.length + backendColors.length + next.length - 1)
+    }
+    setCustomColorName('')
+    setSaved(false)
+  }
+
+  const handleSave = async () => {
     setBrandTheme({
       primary: preview.color.primary,
       surface: preview.color.surface,
@@ -50,6 +136,9 @@ export default function AppearancePage() {
       compactCards,
       announcementEnabled,
     })
+    if (preview.color.id) {
+      await api.post(`/admin/theme/activate/${preview.color.id}`).catch(() => undefined)
+    }
     setSaved(true)
     setTimeout(() => setSaved(false), 1600)
   }
@@ -85,7 +174,7 @@ export default function AppearancePage() {
 
             <Section title="Màu thương hiệu" icon={Palette}>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {colorPresets.map((color, index) => (
+                {allColorPresets.map((color, index) => (
                   <button key={color.name} onClick={() => setSelectedColor(index)} className={cn('flex items-center gap-3 rounded-lg border p-4 text-left transition', selectedColor === index ? 'border-accent bg-accent/5' : 'border-border hover:border-accent/40')}>
                     <span className="h-9 w-9 rounded-lg border border-border" style={{ background: color.primary }} />
                     <span className="min-w-0 flex-1">
@@ -95,6 +184,24 @@ export default function AppearancePage() {
                     {selectedColor === index && <Check className="h-4 w-4 text-accent" />}
                   </button>
                 ))}
+              </div>
+              <div className="mt-4 grid gap-3 rounded-lg border border-dashed border-border p-4 lg:grid-cols-[1fr_auto_auto_auto] lg:items-end">
+                <label className="block text-sm font-medium text-foreground">
+                  Tên màu
+                  <input value={customColorName} onChange={(event) => setCustomColorName(event.target.value)} placeholder="Ví dụ: HTech Cyan" className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-accent" />
+                </label>
+                <label className="block text-sm font-medium text-foreground">
+                  Màu chính
+                  <input type="color" value={customPrimary} onChange={(event) => setCustomPrimary(event.target.value)} className="mt-1 h-10 w-24 cursor-pointer rounded-lg border border-border bg-background p-1" />
+                </label>
+                <label className="block text-sm font-medium text-foreground">
+                  Nền phụ
+                  <input type="color" value={customSurface} onChange={(event) => setCustomSurface(event.target.value)} className="mt-1 h-10 w-24 cursor-pointer rounded-lg border border-border bg-background p-1" />
+                </label>
+                <button onClick={addCustomColor} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground hover:bg-accent/90">
+                  <Plus className="h-4 w-4" />
+                  Thêm màu
+                </button>
               </div>
             </Section>
 

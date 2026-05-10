@@ -1,7 +1,7 @@
 'use client'
 
 import { Suspense, useState, useMemo, useEffect } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import {
@@ -191,6 +191,8 @@ function ProductCard({ product }: { product: Product }) {
 
 function ProductsContent() {
   const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
   const { locale, t } = useI18n()
   
   const [filterOpen, setFilterOpen] = useState(false)
@@ -208,9 +210,9 @@ function ProductsContent() {
     const badge = searchParams.get('badge')
     const search = searchParams.get('search')
     
-    if (category) setSelectedCategory(normalizeCategory(category))
+    setSelectedCategory(category ? normalizeCategory(category) : 'all')
     if (badge === 'Sale') setSelectedCategory('all')
-    if (search) setSearchQuery(search)
+    setSearchQuery(search || '')
   }, [searchParams])
 
   useEffect(() => {
@@ -279,6 +281,21 @@ function ProductsContent() {
     setSelectedBrands([])
     setSelectedPriceRange(null)
     setSortBy('newest')
+    router.push(pathname)
+  }
+
+  const updateCategory = (categoryId: string) => {
+    const normalized = normalizeCategory(categoryId)
+    setSelectedCategory(normalized)
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete('badge')
+    if (normalized === 'all') {
+      params.delete('category')
+    } else {
+      params.set('category', normalized)
+    }
+    const query = params.toString()
+    router.push(query ? `${pathname}?${query}` : pathname)
   }
 
   const selectedCategoryId = normalizeCategory(selectedCategory)
@@ -331,7 +348,7 @@ function ProductsContent() {
                   {categoryOptions.map((cat) => (
                     <button
                       key={cat.id}
-                      onClick={() => setSelectedCategory(cat.id)}
+                      onClick={() => updateCategory(cat.id)}
                       className={cn(
                         'w-full text-left px-3 py-2 rounded-lg text-sm transition-colors',
                         normalizeCategory(selectedCategory) === cat.id
@@ -533,7 +550,7 @@ function ProductsContent() {
                   {categoryOptions.map((cat) => (
                     <button
                       key={cat.id}
-                      onClick={() => setSelectedCategory(cat.id)}
+                      onClick={() => updateCategory(cat.id)}
                       className={cn(
                         'px-4 py-2 rounded-xl text-sm transition-colors',
                         normalizeCategory(selectedCategory) === cat.id

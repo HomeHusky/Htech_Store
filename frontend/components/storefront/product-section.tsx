@@ -9,7 +9,27 @@ import { useCart, allProducts, type Product } from '@/lib/store'
 import { fetchProducts } from '@/lib/products-api'
 import { useI18n } from '@/lib/i18n'
 
-const filters = ['Tất cả', 'phone', 'laptop', 'pc', 'tablet', 'accessory']
+const filters = ['all', 'phone', 'laptop', 'pc', 'tablet', 'accessory']
+
+function normalizeCategory(value?: string | null) {
+  const key = (value || '').trim().toLowerCase()
+  const aliases: Record<string, string> = {
+    iphone: 'phone',
+    smartphone: 'phone',
+    mobile: 'phone',
+    phone: 'phone',
+    macbook: 'laptop',
+    laptop: 'laptop',
+    gaming: 'pc',
+    pcgaming: 'pc',
+    pc: 'pc',
+    accessories: 'accessory',
+    accessory: 'accessory',
+    tablet: 'tablet',
+    all: 'all',
+  }
+  return aliases[key] || key
+}
 
 function ProductCard({ product }: { product: Product }) {
   const { t } = useI18n()
@@ -94,21 +114,21 @@ function ProductCard({ product }: { product: Product }) {
 export function ProductSection() {
   const { t } = useI18n()
   const sectionRef = useRef<HTMLElement>(null)
-  const [activeFilter, setActiveFilter] = useState('Tất cả')
+  const [activeFilter, setActiveFilter] = useState('all')
   const [products, setProducts] = useState<Product[]>(allProducts)
 
   const filterLabels: Record<string, string> = {
-    'Tất cả': t('products.all'),
-    phone: t('cat.iphone'),
-    laptop: t('cat.macbook'),
-    pc: t('cat.gaming'),
+    all: t('products.all'),
+    phone: t('nav.iphone'),
+    laptop: t('nav.macbook'),
+    pc: t('nav.gaming'),
     tablet: 'Tablet',
-    accessory: t('cat.accessories'),
+    accessory: t('nav.accessories'),
   }
 
   useEffect(() => {
     fetchProducts()
-      .then((items) => setProducts(items.slice(0, 8)))
+      .then((items) => setProducts(items))
       .catch((error) => console.error('Failed to load featured products:', error))
   }, [])
 
@@ -121,7 +141,11 @@ export function ProductSection() {
     return () => observer.disconnect()
   }, [])
 
-  const filteredProducts = activeFilter === 'Tất cả' ? products : products.filter((product) => product.category === activeFilter)
+  const filteredProducts = (activeFilter === 'all'
+    ? products
+    : products.filter((product) => normalizeCategory(product.category) === activeFilter)
+  ).slice(0, 8)
+  const viewAllHref = activeFilter === 'all' ? '/products' : `/products?category=${activeFilter}`
 
   return (
     <section ref={sectionRef} id="products" className="bg-background py-20">
@@ -151,7 +175,7 @@ export function ProductSection() {
         </div>
 
         <div className="reveal delay-200 mt-10 flex justify-center">
-          <Link href="/products" className="rounded-lg border border-border px-8 py-3 text-sm font-semibold text-muted-foreground transition hover:border-foreground hover:text-foreground">
+          <Link href={viewAllHref} className="rounded-lg border border-border px-8 py-3 text-sm font-semibold text-muted-foreground transition hover:border-foreground hover:text-foreground">
             {t('products.viewall')}
           </Link>
         </div>
