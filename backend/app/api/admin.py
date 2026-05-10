@@ -34,10 +34,11 @@ from app.services.chat_models import generate_answer_with_config, test_admin_con
 from app.services.hybrid_search import hybrid_search_policies, hybrid_search_products
 from app.services.telegram import notify_human_support, send_telegram_message
 from app.api.auth import require_admin_access, require_full_admin
+from app.core.config import settings
 
 router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(require_admin_access)])
 
-UPLOAD_DIR = Path("static/uploads")
+UPLOAD_DIR = Path(settings.upload_dir)
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 @router.get("/stats")

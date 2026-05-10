@@ -44,6 +44,14 @@ def _token_payload(user: User) -> dict:
     }
 
 
+def _public_backend_url() -> str:
+    return (os.getenv("BACKEND_PUBLIC_URL") or os.getenv("NEXT_PUBLIC_BACKEND_URL") or "http://localhost:8000").rstrip("/")
+
+
+def _public_frontend_url() -> str:
+    return (os.getenv("FRONTEND_PUBLIC_URL") or os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")[0]).rstrip("/")
+
+
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
@@ -128,7 +136,7 @@ def google_login(request: Request, db: Session = Depends(get_db)):
     if not client_id:
         raise HTTPException(status_code=500, detail="Google Client ID not configured")
     
-    redirect_uri = os.getenv("NEXT_PUBLIC_BACKEND_URL", "http://localhost:8000") + "/api/auth/google/callback"
+    redirect_uri = f"{_public_backend_url()}/api/auth/google/callback"
 
     params = {
         "client_id": client_id,
@@ -147,7 +155,7 @@ async def google_callback(code: str, request: Request, db: Session = Depends(get
     client_secret = settings_ai.google_client_secret or os.getenv("CLIENT_SECRET")
     if not client_id or not client_secret:
         raise HTTPException(status_code=500, detail="Google OAuth credentials not configured")
-    redirect_uri = os.getenv("NEXT_PUBLIC_BACKEND_URL", "http://localhost:8000") + "/api/auth/google/callback"
+    redirect_uri = f"{_public_backend_url()}/api/auth/google/callback"
     
     async with httpx.AsyncClient() as client:
         token_res = await client.post("https://oauth2.googleapis.com/token", data={
@@ -190,8 +198,7 @@ async def google_callback(code: str, request: Request, db: Session = Depends(get
         
     token = create_access_token(_token_payload(user))
     
-    frontend_url = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")[0]
-    return RedirectResponse(f"{frontend_url}/login?{urlencode({'token': token})}")
+    return RedirectResponse(f"{_public_frontend_url()}/login?{urlencode({'token': token})}")
 
 
 @router.get("/me")

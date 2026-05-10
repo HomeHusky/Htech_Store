@@ -1,4 +1,4 @@
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -8,17 +8,24 @@ class Settings(BaseSettings):
     app_name: str = "Htech Store API"
     app_env: str = Field(default="development", alias="APP_ENV")
     app_debug: bool = Field(default=False, alias="APP_DEBUG")
+    host: str = Field(default="0.0.0.0", alias="HOST")
+    port: int = Field(default=8000, alias="PORT")
 
     database_url: str = Field(alias="DATABASE_URL")
     gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")
     openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
     openai_text_embed_3_small_key: str = Field(default="", alias="OPENAI_TEXT_EMBED_3_SMALL")
     phi4_api_key: str = Field(default="", alias="PHI4_API_KEY")
-    phi4_reasoning_api_key: str = Field(default="", alias="PHI4_RESONING_API_KEY")
+    phi4_reasoning_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("PHI4_REASONING_API_KEY", "PHI4_RESONING_API_KEY"),
+    )
     ollama_base_url: str = Field(default="http://localhost:11434", alias="OLLAMA_BASE_URL")
 
     telegram_bot_token: str | None = Field(default=None, alias="TELEGRAM_BOT_TOKEN")
     telegram_chat_id: str | None = Field(default=None, alias="TELEGRAM_CHAT_ID")
+    static_dir: str = Field(default="static", alias="STATIC_DIR")
+    upload_dir: str = Field(default="static/uploads", alias="UPLOAD_DIR")
 
     cors_origins: str = Field(
         default="http://localhost:3000,http://localhost:3001,http://localhost:3002,http://127.0.0.1:3000,http://127.0.0.1:3001",

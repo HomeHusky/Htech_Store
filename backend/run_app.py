@@ -13,23 +13,25 @@ def main():
     # Change to backend directory
     backend_dir = os.path.dirname(os.path.abspath(__file__))
     os.chdir(backend_dir)
+    host = os.getenv("HOST", "0.0.0.0")
+    port = os.getenv("PORT", "8000")
+    reload_enabled = os.getenv("RELOAD", "true").lower() in {"1", "true", "yes"}
+    command = [
+        sys.executable,
+        "-m",
+        "uvicorn",
+        "app.main:app",
+        "--host",
+        host,
+        "--port",
+        port,
+    ]
+    if reload_enabled:
+        command.append("--reload")
     
     try:
         # Run uvicorn server
-        subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "uvicorn",
-                "app.main:app",
-                "--reload",
-                "--host",
-                "0.0.0.0",
-                "--port",
-                "8000",
-            ],
-            check=True,
-        )
+        subprocess.run(command, check=True)
     except KeyboardInterrupt:
         print("\n✓ Server stopped")
         sys.exit(0)

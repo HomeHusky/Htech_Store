@@ -9,9 +9,11 @@ import os
 
 app = FastAPI(title=settings.app_name)
 
-# Ensure static/uploads exists
-os.makedirs("static/uploads", exist_ok=True)
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# Ensure static and upload directories exist. On Hugging Face Spaces, set
+# STATIC_DIR=/data/static and UPLOAD_DIR=/data/static/uploads for persistence.
+os.makedirs(settings.static_dir, exist_ok=True)
+os.makedirs(settings.upload_dir, exist_ok=True)
+app.mount("/static", StaticFiles(directory=settings.static_dir), name="static")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
