@@ -64,6 +64,7 @@ Thumbs.db
 *.sqlite3
 *.db
 *.bak
+backend/
 backend/*.sqlite
 backend/*.sqlite3
 backend/*.db
