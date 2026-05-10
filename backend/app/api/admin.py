@@ -18,7 +18,8 @@ from app.schemas.admin import (
     OrderItemDTO, OrderStatusUpdateDTO, UserDTO, LoginRequestDTO,
     CategoryDTO, RepairDTO, RepairNoteDTO, ThemePaletteDTO, 
     ThemeSettingsResponseDTO, StoreSettingsDTO, TelegramTestDTO,
-    PromotionDTO, PromotionCreateDTO
+    PromotionDTO, PromotionCreateDTO, QueryTransformerRequestDTO,
+    QueryTransformerResponseDTO
 )
 from app.services.admin_service import (
     delete_product, get_all_orders, get_all_products,
@@ -29,7 +30,8 @@ from app.services.admin_service import (
     get_all_palettes, upsert_palette, set_active_palette, delete_palette
 )
 from app.services.model_catalog import get_model_catalog
-from app.services.chat_models import test_admin_configured_model
+from app.services.chat_models import generate_answer_with_config, test_admin_configured_model
+from app.services.hybrid_search import hybrid_search_policies, hybrid_search_products
 from app.services.telegram import notify_human_support
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -179,7 +181,10 @@ def _apply_promotion_payload(p: Promotion, payload: PromotionCreateDTO | Promoti
 
     p.code = payload.code.upper().strip()
     p.name = payload.name
-    p.type = PromotionType(payload.type)
+    try:
+        p.type = PromotionType(payload.type)
+    except ValueError:
+        p.type = PromotionType[payload.type.upper()]
     p.value = payload.value
     p.min_order = payload.min_order
     p.max_discount = payload.max_discount
@@ -189,7 +194,10 @@ def _apply_promotion_payload(p: Promotion, payload: PromotionCreateDTO | Promoti
     p.applicable_products = payload.applicable_products
     p.category = payload.category
     if hasattr(payload, "status"):
-        p.status = PromotionStatus(payload.status)
+        try:
+            p.status = PromotionStatus(payload.status)
+        except ValueError:
+            p.status = PromotionStatus[payload.status.upper()]
     return p
 
 
@@ -201,11 +209,20 @@ def list_promotions(db: Session = Depends(get_db)):
 
 @router.post("/promotions", response_model=PromotionDTO)
 def create_promotion(payload: PromotionCreateDTO, db: Session = Depends(get_db)):
-    p = _apply_promotion_payload(Promotion(), payload)
-    db.add(p)
-    db.commit()
-    db.refresh(p)
-    return _promotion_dto(p)
+    from sqlalchemy.exc import IntegrityError
+
+    try:
+        p = _apply_promotion_payload(Promotion(), payload)
+        db.add(p)
+        db.commit()
+        db.refresh(p)
+        return _promotion_dto(p)
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(400, f"Invalid promotion data: {exc}")
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409, "Promotion code already exists")
 
 
 @router.put("/promotions/{promotion_id}", response_model=PromotionDTO)
@@ -242,6 +259,11 @@ def get_settings(db: Session = Depends(get_db)):
         google_client_id=setting.google_client_id, google_client_secret=setting.google_client_secret,
         database_url=setting.database_url, system_prompt=setting.system_prompt,
         telegram_bot_token=setting.telegram_bot_token, telegram_chat_id=setting.telegram_chat_id,
+        chat_model_order=setting.chat_model_order or [],
+        task_model_config=setting.task_model_config or {},
+        reasoning_model_count=setting.reasoning_model_count or 1,
+        query_transformer_provider=setting.query_transformer_provider,
+        query_transformer_model=setting.query_transformer_model,
     )
 
 @router.put("/settings", response_model=AISettingsDTO)
@@ -253,6 +275,11 @@ def put_settings(payload: AISettingsDTO, db: Session = Depends(get_db)):
         google_client_id=setting.google_client_id, google_client_secret=setting.google_client_secret,
         database_url=setting.database_url, system_prompt=setting.system_prompt,
         telegram_bot_token=setting.telegram_bot_token, telegram_chat_id=setting.telegram_chat_id,
+        chat_model_order=setting.chat_model_order or [],
+        task_model_config=setting.task_model_config or {},
+        reasoning_model_count=setting.reasoning_model_count or 1,
+        query_transformer_provider=setting.query_transformer_provider,
+        query_transformer_model=setting.query_transformer_model,
     )
 
 @router.get("/policy", response_model=PolicyResponseDTO | None)
@@ -274,8 +301,31 @@ def put_policy(payload: PolicyUpdateDTO, db: Session = Depends(get_db)):
 
 @router.post("/test-model", response_model=ModelTestResponseDTO)
 async def test_model(payload: ModelTestRequestDTO, db: Session = Depends(get_db)):
-    result = await test_admin_configured_model(db, payload.prompt)
+    result = await test_admin_configured_model(db, payload.prompt, provider=payload.provider, model=payload.model, task=payload.task)
     return ModelTestResponseDTO(**result)
+
+
+@router.post("/query-transformer", response_model=QueryTransformerResponseDTO)
+async def query_transformer(payload: QueryTransformerRequestDTO, db: Session = Depends(get_db)):
+    setting = get_or_create_ai_settings(db)
+    provider = payload.provider or setting.query_transformer_provider or setting.chat_provider
+    model = payload.model or setting.query_transformer_model or setting.chat_model
+    prompt = (
+        "Rewrite this customer question into a concise Vietnamese search query for product and policy retrieval. "
+        "Keep product names, budget, specs, warranty, delivery, payment, and intent. Return only the rewritten query.\n"
+        f"Question: {payload.question}"
+    )
+    transformed = await generate_answer_with_config(db, prompt, provider=provider, model=model, task="query_transformer")
+    transformed_query = transformed.strip().strip('"') or payload.question
+    products = hybrid_search_products(db, transformed_query)
+    policies = hybrid_search_policies(db, transformed_query)
+    return QueryTransformerResponseDTO(
+        provider=provider,
+        model=model,
+        original_question=payload.question,
+        transformed_query=transformed_query,
+        context={"products": products[:5], "policies": policies[:5]},
+    )
 
 @router.get("/store-profile", response_model=StoreProfileDTO)
 def store_profile(db: Session = Depends(get_db)):
@@ -423,12 +473,21 @@ def update_repair_endpoint(repair_id: str, payload: RepairDTO, db: Session = Dep
 
 @router.delete("/repairs/{repair_id}")
 def remove_repair_endpoint(repair_id: str, db: Session = Depends(get_db)):
+    from sqlalchemy.exc import IntegrityError
+
     r = db.get(Repair, repair_id)
     if not r:
         raise HTTPException(404, "Repair not found")
-    db.delete(r)
-    db.commit()
-    return {"success": True}
+    try:
+        db.delete(r)
+        db.commit()
+        return {"success": True}
+    except IntegrityError:
+        db.rollback()
+        db.query(RepairNote).filter(RepairNote.repair_id == repair_id).delete()
+        db.delete(r)
+        db.commit()
+        return {"success": True}
 
 @router.get("/theme", response_model=ThemeSettingsResponseDTO)
 def get_theme_settings_endpoint(db: Session = Depends(get_db)):

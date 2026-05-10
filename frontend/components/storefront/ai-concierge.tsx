@@ -12,8 +12,22 @@ type Message = {
   time: string
 }
 
+type ChatProduct = {
+  id?: string
+  slug?: string
+  name?: string | { vi?: string; en?: string }
+}
+
+type ChatResponse = {
+  answer: string
+  tool?: string
+  payload?: {
+    products?: ChatProduct[]
+  }
+}
+
 const quickActions = [
-  { icon: Cpu, label: 'Tư vấn PC', prompt: 'Tư vấn giúp tôi một bộ PC gaming dưới 30 triệu' },
+  { icon: Cpu, label: 'Tư vấn PC', prompt: 'Tôi muốn mua PC' },
   { icon: ShieldCheck, label: 'Bảo hành', prompt: 'Chính sách bảo hành và đặt cọc của HTech như thế nào?' },
   { icon: Zap, label: 'So sánh iPhone', prompt: 'So sánh iPhone 15 Pro và iPhone 15 Pro Max giúp tôi' },
   { icon: Sparkles, label: 'Ưu đãi tốt', prompt: 'Hiện có sản phẩm nào đáng mua hoặc đang giảm giá?' },
@@ -31,6 +45,35 @@ function getSessionId() {
   const created = crypto.randomUUID()
   window.localStorage.setItem(key, created)
   return created
+}
+
+function productName(product: ChatProduct) {
+  if (typeof product.name === 'string') return product.name
+  return product.name?.vi || product.name?.en || product.slug || product.id || 'Sản phẩm'
+}
+
+function withProductLinks(response: ChatResponse) {
+  const products = response.payload?.products?.slice(0, 3) || []
+  if (!products.length || response.answer.includes('/products/')) return response.answer
+  const links = products
+    .map((product) => {
+      const slug = product.slug || product.id
+      return slug ? `- ${productName(product)}: /products/${slug}` : ''
+    })
+    .filter(Boolean)
+  return links.length ? `${response.answer}\n\nXem nhanh:\n${links.join('\n')}` : response.answer
+}
+
+function renderMessageContent(content: string) {
+  return content.split(/(\/products\/[a-zA-Z0-9_-]+)/g).map((part, index) =>
+    part.startsWith('/products/') ? (
+      <a key={`${part}-${index}`} href={part} className="font-semibold text-accent underline underline-offset-2">
+        {part}
+      </a>
+    ) : (
+      <span key={index}>{part}</span>
+    ),
+  )
 }
 
 export function AIConcierge() {
@@ -60,12 +103,12 @@ export function AIConcierge() {
     setTyping(true)
 
     try {
-      const { data } = await api.post<{ answer: string }>('/chat', {
+      const { data } = await api.post<ChatResponse>('/chat', {
         session_id: getSessionId(),
         message: content,
         locale: 'vi',
       })
-      setMessages((prev) => [...prev, { id: Date.now() + 1, role: 'assistant', content: data.answer, time: getTime() }])
+      setMessages((prev) => [...prev, { id: Date.now() + 1, role: 'assistant', content: withProductLinks(data), time: getTime() }])
     } catch (error) {
       console.error('Chat failed:', error)
       setMessages((prev) => [
@@ -109,8 +152,8 @@ export function AIConcierge() {
                   {msg.role === 'assistant' ? <Bot className="h-3.5 w-3.5 text-accent-foreground" /> : <User className="h-3.5 w-3.5 text-muted-foreground" />}
                 </div>
                 <div className={cn('flex max-w-[78%] flex-col gap-1', msg.role === 'user' ? 'items-end' : 'items-start')}>
-                  <div className={cn('rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed', msg.role === 'assistant' ? 'rounded-tl-sm border border-border bg-surface text-foreground' : 'rounded-tr-sm bg-accent text-accent-foreground')}>
-                    {msg.content}
+                  <div className={cn('whitespace-pre-line rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed', msg.role === 'assistant' ? 'rounded-tl-sm border border-border bg-surface text-foreground' : 'rounded-tr-sm bg-accent text-accent-foreground')}>
+                    {renderMessageContent(msg.content)}
                   </div>
                   <p className="text-[10px] text-muted-foreground">{msg.time}</p>
                 </div>

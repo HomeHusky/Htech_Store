@@ -290,3 +290,16 @@ def seed_support_data(db: Session) -> None:
     _ensure_order_backfill(db)
     _ensure_vouchers(db)
     db.commit()
+
+
+if __name__ == "__main__":
+    from app.db.session import SessionLocal
+    db = SessionLocal()
+    try:
+        seed_support_data(db)
+        print("Seeded Htech support data (FAQs, Vouchers, Categories, etc.)")
+    except Exception as e:
+        db.rollback()
+        print(f"Error seeding support data: {e}")
+    finally:
+        db.close()

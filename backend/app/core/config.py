@@ -20,7 +20,10 @@ class Settings(BaseSettings):
     telegram_bot_token: str | None = Field(default=None, alias="TELEGRAM_BOT_TOKEN")
     telegram_chat_id: str | None = Field(default=None, alias="TELEGRAM_CHAT_ID")
 
-    cors_origins: str = Field(default="http://localhost:3000", alias="CORS_ORIGINS")
+    cors_origins: str = Field(
+        default="http://localhost:3000,http://localhost:3001,http://localhost:3002,http://127.0.0.1:3000,http://127.0.0.1:3001",
+        alias="CORS_ORIGINS",
+    )
     embedding_dimension: int = Field(default=768, alias="EMBEDDING_DIMENSION")
     hybrid_rrf_k: int = Field(default=60, alias="HYBRID_RRF_K")
     hybrid_limit: int = Field(default=8, alias="HYBRID_LIMIT")

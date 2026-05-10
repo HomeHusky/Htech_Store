@@ -12,7 +12,7 @@ const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ??
   (process.env.NEXT_PUBLIC_BACKEND_URL
     ? `${process.env.NEXT_PUBLIC_BACKEND_URL.replace(/\/$/, '')}/api`
-    : 'http://localhost:8000/api')
+    : `http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8000/api`)
 
 function buildUrl(path: string, params?: RequestConfig['params']) {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`

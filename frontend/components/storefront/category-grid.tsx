@@ -5,55 +5,53 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useI18n } from '@/lib/i18n'
 
 const categories = [
   {
     id: 'iphone',
     label: 'iPhone',
-    description: 'Pro. Max. Ultra.',
     image: '/images/iphone-15-pro.jpg',
-    href: '#products',
+    href: '/products?category=phone',
     accent: 'from-slate-50 to-blue-light',
     span: 'lg:col-span-2 lg:row-span-2',
     textColor: 'text-foreground',
-    tag: 'Best Seller',
+    tag: true,
   },
   {
     id: 'macbook',
     label: 'MacBook',
-    description: 'Power meets portability',
     image: '/images/macbook-pro.jpg',
-    href: '#products',
+    href: '/products?category=laptop',
     accent: 'from-slate-50 to-slate-100',
     span: 'lg:col-span-1',
     textColor: 'text-foreground',
-    tag: 'New',
+    tag: true,
   },
   {
     id: 'gaming',
     label: 'PC Gaming',
-    description: 'Build your rig',
     image: '/images/gaming-pc.jpg',
-    href: '#products',
+    href: '/products?category=pc',
     accent: 'from-slate-900 to-slate-800',
     span: 'lg:col-span-1',
     textColor: 'text-white',
-    tag: 'Hot',
+    tag: true,
   },
   {
     id: 'accessories',
-    label: 'Accessories',
-    description: 'Complete your setup',
+    label: 'Phụ kiện',
     image: '/images/accessories.jpg',
-    href: '#products',
+    href: '/products?category=accessory',
     accent: 'from-slate-50 to-slate-100',
     span: 'lg:col-span-2',
     textColor: 'text-foreground',
-    tag: null,
+    tag: false,
   },
 ]
 
 export function CategoryGrid() {
+  const { locale, t } = useI18n()
   const sectionRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
@@ -72,17 +70,17 @@ export function CategoryGrid() {
         <div className="reveal flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-10">
           <div>
             <p className="text-xs font-semibold text-accent uppercase tracking-widest mb-2">
-              Shop by Category
+              {t('cat.title')}
             </p>
             <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-foreground text-balance">
-              Everything you need.
+              {t('cat.subtitle')}
             </h2>
           </div>
           <Link
             href="#products"
             className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent hover:text-blue-dark transition-colors"
           >
-            View all products
+            {t('products.viewall')}
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
@@ -106,14 +104,14 @@ export function CategoryGrid() {
                 <span
                   className={cn(
                     'absolute top-4 left-4 z-20 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider',
-                    cat.tag === 'Hot'
+                    cat.id === 'gaming'
                       ? 'bg-accent text-accent-foreground'
-                      : cat.tag === 'New'
+                      : cat.id === 'macbook'
                         ? 'bg-foreground text-background'
                         : 'bg-amber-400 text-amber-900',
                   )}
                 >
-                  {cat.tag}
+                  {t(`cat.tag.${cat.id === 'iphone' ? 'best' : cat.id === 'macbook' ? 'new' : 'hot'}` as any)}
                 </span>
               )}
 
@@ -144,7 +142,7 @@ export function CategoryGrid() {
                     cat.textColor,
                   )}
                 >
-                  {cat.description}
+                  {t(`cat.${cat.id}.desc` as any)}
                 </p>
                 <div className="flex items-center justify-between">
                   <h3
@@ -154,7 +152,7 @@ export function CategoryGrid() {
                       cat.textColor,
                     )}
                   >
-                    {cat.label}
+                    {t(`cat.${cat.id}` as any) || cat.label}
                   </h3>
                   <span
                     className={cn(

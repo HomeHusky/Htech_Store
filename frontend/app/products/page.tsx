@@ -26,6 +26,14 @@ import { fetchProducts } from '@/lib/products-api'
 
 const categories = ['Tất cả', 'iPhone', 'MacBook', 'Gaming', 'Accessories']
 const brands = ['Apple', 'ASUS', 'Samsung', 'HTech Custom']
+const categoryOptions = [
+  { id: 'all', vi: 'Tất cả', en: 'All' },
+  { id: 'phone', vi: 'Điện thoại', en: 'Phones' },
+  { id: 'laptop', vi: 'Laptop', en: 'Laptops' },
+  { id: 'pc', vi: 'PC Gaming', en: 'Gaming PCs' },
+  { id: 'tablet', vi: 'Tablet', en: 'Tablets' },
+  { id: 'accessory', vi: 'Phụ kiện', en: 'Accessories' },
+]
 const priceRanges = [
   { label: 'Dưới 10 triệu', min: 0, max: 10000000 },
   { label: '10 - 30 triệu', min: 10000000, max: 30000000 },
@@ -39,11 +47,29 @@ const sortOptions = [
   { value: 'popular', label: 'Phổ biến nhất' },
 ]
 
+function normalizeCategory(value?: string | null) {
+  const key = (value || 'all').trim().toLowerCase()
+  const aliases: Record<string, string> = {
+    iphone: 'phone',
+    smartphone: 'phone',
+    phone: 'phone',
+    macbook: 'laptop',
+    laptop: 'laptop',
+    gaming: 'pc',
+    pc: 'pc',
+    accessories: 'accessory',
+    accessory: 'accessory',
+    tablet: 'tablet',
+    all: 'all',
+  }
+  return aliases[key] || key
+}
+
 function ProductCard({ product }: { product: Product }) {
   const [wished, setWished] = useState(false)
   const [addedToCart, setAddedToCart] = useState(false)
   const { addItem } = useCart()
-  const { t } = useI18n()
+  const { locale, t } = useI18n()
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -54,7 +80,7 @@ function ProductCard({ product }: { product: Product }) {
   }
 
   return (
-    <Link href={`/products/${product.id}`}>
+    <Link href={`/products/${product.slug || product.id}`}>
       <article className="group relative bg-card rounded-2xl border border-border overflow-hidden flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-foreground/8">
         {product.badge && (
           <span
@@ -165,11 +191,11 @@ function ProductCard({ product }: { product: Product }) {
 
 function ProductsContent() {
   const searchParams = useSearchParams()
-  const { t } = useI18n()
+  const { locale, t } = useI18n()
   
   const [filterOpen, setFilterOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '')
-  const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'Tất cả')
+  const [selectedCategory, setSelectedCategory] = useState(normalizeCategory(searchParams.get('category')))
   const [selectedBrands, setSelectedBrands] = useState<string[]>([])
   const [selectedPriceRange, setSelectedPriceRange] = useState<number | null>(null)
   const [sortBy, setSortBy] = useState('newest')
@@ -182,17 +208,17 @@ function ProductsContent() {
     const badge = searchParams.get('badge')
     const search = searchParams.get('search')
     
-    if (category) setSelectedCategory(category)
-    if (badge === 'Sale') setSelectedCategory('Tất cả')
+    if (category) setSelectedCategory(normalizeCategory(category))
+    if (badge === 'Sale') setSelectedCategory('all')
     if (search) setSearchQuery(search)
   }, [searchParams])
 
   useEffect(() => {
-    fetchProducts()
+    fetchProducts({ locale })
       .then((items) => setProducts(items))
       .catch((error) => console.error('Failed to fetch products:', error))
       .finally(() => setLoading(false))
-  }, [])
+  }, [locale])
 
   const filteredProducts = useMemo(() => {
     let result = [...products]
@@ -208,8 +234,8 @@ function ProductsContent() {
     }
 
     // Category filter
-    if (selectedCategory !== 'Tất cả') {
-      result = result.filter(p => p.category === selectedCategory)
+    if (normalizeCategory(selectedCategory) !== 'all') {
+      result = result.filter(p => normalizeCategory(p.category) === normalizeCategory(selectedCategory))
     }
 
     // Badge filter (from URL)
@@ -249,13 +275,16 @@ function ProductsContent() {
 
   const clearFilters = () => {
     setSearchQuery('')
-    setSelectedCategory('Tất cả')
+    setSelectedCategory('all')
     setSelectedBrands([])
     setSelectedPriceRange(null)
     setSortBy('newest')
   }
 
-  const hasActiveFilters = searchQuery || selectedCategory !== 'Tất cả' || selectedBrands.length > 0 || selectedPriceRange !== null
+  const selectedCategoryId = normalizeCategory(selectedCategory)
+  const hasActiveFilters = searchQuery || selectedCategoryId !== 'all' || selectedBrands.length > 0 || selectedPriceRange !== null
+  const selectedCategoryLabel =
+    categoryOptions.find((category) => category.id === selectedCategoryId)?.[locale === 'vi' ? 'vi' : 'en'] || selectedCategory
 
   return (
     <main className="min-h-screen bg-background">
@@ -265,7 +294,7 @@ function ProductsContent() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl sm:text-4xl font-black text-foreground mb-2">
-            {selectedCategory === 'Tất cả' ? t('products.title') : selectedCategory}
+            {selectedCategoryId === 'all' ? t('products.title') : selectedCategoryLabel}
           </h1>
           <p className="text-muted-foreground">
             {loading ? 'Đang tải sản phẩm...' : `${filteredProducts.length} ${t('cart.items')}`}
@@ -299,18 +328,18 @@ function ProductsContent() {
                   {t('filter.category')}
                 </label>
                 <div className="space-y-1">
-                  {categories.map((cat) => (
+                  {categoryOptions.map((cat) => (
                     <button
-                      key={cat}
-                      onClick={() => setSelectedCategory(cat)}
+                      key={cat.id}
+                      onClick={() => setSelectedCategory(cat.id)}
                       className={cn(
                         'w-full text-left px-3 py-2 rounded-lg text-sm transition-colors',
-                        selectedCategory === cat
+                        normalizeCategory(selectedCategory) === cat.id
                           ? 'bg-foreground text-background font-medium'
                           : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                       )}
                     >
-                      {cat}
+                      {locale === 'vi' ? cat.vi : cat.en}
                     </button>
                   ))}
                 </div>
@@ -501,18 +530,18 @@ function ProductsContent() {
               <div>
                 <label className="text-sm font-semibold text-foreground mb-3 block">{t('filter.category')}</label>
                 <div className="flex flex-wrap gap-2">
-                  {categories.map((cat) => (
+                  {categoryOptions.map((cat) => (
                     <button
-                      key={cat}
-                      onClick={() => setSelectedCategory(cat)}
+                      key={cat.id}
+                      onClick={() => setSelectedCategory(cat.id)}
                       className={cn(
                         'px-4 py-2 rounded-xl text-sm transition-colors',
-                        selectedCategory === cat
+                        normalizeCategory(selectedCategory) === cat.id
                           ? 'bg-foreground text-background font-medium'
                           : 'border border-border hover:bg-muted'
                       )}
                     >
-                      {cat}
+                      {locale === 'vi' ? cat.vi : cat.en}
                     </button>
                   ))}
                 </div>

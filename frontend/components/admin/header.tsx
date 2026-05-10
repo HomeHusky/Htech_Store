@@ -1,6 +1,7 @@
 'use client'
 
 import { Bell, Search } from 'lucide-react'
+import { useI18n } from '@/lib/i18n'
 
 type AdminHeaderProps = {
   title: string
@@ -8,6 +9,8 @@ type AdminHeaderProps = {
 }
 
 export function AdminHeader({ title, subtitle }: AdminHeaderProps) {
+  const { t } = useI18n()
+  
   return (
     <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6 shrink-0">
       <div>
@@ -19,7 +22,7 @@ export function AdminHeader({ title, subtitle }: AdminHeaderProps) {
           <Search className="absolute left-3 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search..."
+            placeholder={t('admin.search')}
             className="pl-9 pr-4 py-2 rounded-xl bg-muted border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-accent w-48 transition-colors"
           />
         </div>

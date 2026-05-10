@@ -1,238 +1,164 @@
 'use client'
 
-import { useState } from 'react'
-import { MessageSquare, ShoppingBag, ChevronRight, Search, TrendingUp } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { useEffect, useMemo, useState } from 'react'
+import { ChevronRight, Mail, Search, ShoppingBag, TrendingUp, User } from 'lucide-react'
 import { AdminHeader } from '@/components/admin/header'
+import api from '@/lib/api'
+import { formatVnd } from '@/lib/products-api'
+import { cn } from '@/lib/utils'
 
 type Customer = {
-  id: number
+  id: string
   name: string
   email: string
-  avatar: string
+  role?: string
   totalOrders: number
-  totalSpend: string
+  totalSpend: number
   lastOrder: string
-  segment: 'VIP' | 'Regular' | 'New'
+  segment: 'VIP' | 'Thường' | 'Mới'
   intent: string
-  chatLogs: { role: 'user' | 'ai'; content: string }[]
 }
 
-const customers: Customer[] = [
-  {
-    id: 1,
-    name: 'Nguyen Minh Tri',
-    email: 'tri.nm@email.com',
-    avatar: 'NT',
-    totalOrders: 8,
-    totalSpend: '182,400,000₫',
-    lastOrder: 'iPhone 15 Pro',
-    segment: 'VIP',
-    intent: 'Upgrade to MacBook Pro M3',
-    chatLogs: [
-      { role: 'user', content: 'Compare MacBook Pro 14" vs 16" for video editing' },
-      { role: 'ai', content: 'For professional video editing, the 16" with M3 Max chip is significantly better. It offers up to 128GB unified memory and 30-core GPU...' },
-    ],
-  },
-  {
-    id: 2,
-    name: 'Tran Thi Lan',
-    email: 'lan.tt@email.com',
-    avatar: 'TL',
-    totalOrders: 3,
-    totalSpend: '87,640,000₫',
-    lastOrder: 'MacBook Air M3',
-    segment: 'Regular',
-    intent: 'Interested in iPad Pro',
-    chatLogs: [
-      { role: 'user', content: 'Does iPad Pro work with Apple Pencil Pro?' },
-      { role: 'ai', content: 'Yes! iPad Pro 2024 is fully compatible with Apple Pencil Pro, offering tilt detection, barrel roll, and haptic feedback...' },
-    ],
-  },
-  {
-    id: 3,
-    name: 'Le Van Khanh',
-    email: 'khanh.lv@email.com',
-    avatar: 'LK',
-    totalOrders: 1,
-    totalSpend: '52,990,000₫',
-    lastOrder: 'ROG Gaming Laptop',
-    segment: 'New',
-    intent: 'Building custom gaming PC',
-    chatLogs: [
-      { role: 'user', content: 'I want to build a PC for streaming and gaming, budget 40 million' },
-      { role: 'ai', content: 'For streaming + gaming at 40M budget, I recommend: AMD Ryzen 7 7700X, RTX 4070, 32GB DDR5, 1TB NVMe. This will handle 1440p gaming and streaming simultaneously...' },
-    ],
-  },
-  {
-    id: 4,
-    name: 'Pham Duc Hieu',
-    email: 'hieu.pd@email.com',
-    avatar: 'PH',
-    totalOrders: 5,
-    totalSpend: '142,800,000₫',
-    lastOrder: 'Gaming Monitor 27"',
-    segment: 'VIP',
-    intent: 'Trade-in iPhone 14 for iPhone 15 Pro Max',
-    chatLogs: [
-      { role: 'user', content: 'How much can I get for trading in my iPhone 14 Pro 256GB?' },
-      { role: 'ai', content: 'Your iPhone 14 Pro 256GB in good condition is worth approximately 12-14 million VND as trade-in credit toward an iPhone 15 Pro Max...' },
-    ],
-  },
-]
+type UserDTO = { id?: string; email: string; username?: string; full_name?: string; role?: string }
+type OrderDTO = { id: string; customer: string; email: string; total: number; items?: Array<{ name?: string; product_id: string }> }
 
-const segmentColors: Record<string, string> = {
+const segmentColors: Record<Customer['segment'], string> = {
   VIP: 'text-amber-600 bg-amber-50 border-amber-200',
-  Regular: 'text-blue-600 bg-blue-50 border-blue-200',
-  New: 'text-green-600 bg-green-50 border-green-200',
+  Thường: 'text-blue-600 bg-blue-50 border-blue-200',
+  Mới: 'text-green-600 bg-green-50 border-green-200',
 }
 
 export default function CustomersPage() {
-  const [selectedId, setSelectedId] = useState<number | null>(1)
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [loading, setLoading] = useState(true)
 
-  const filtered = customers.filter(
-    (c) =>
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.email.toLowerCase().includes(search.toLowerCase()),
-  )
-  const selected = customers.find((c) => c.id === selectedId)
+  useEffect(() => {
+    Promise.all([
+      api.get<UserDTO[]>('/admin/users').catch(() => ({ data: [] as UserDTO[] })),
+      api.get<OrderDTO[]>('/admin/orders').catch(() => ({ data: [] as OrderDTO[] })),
+    ]).then(([usersRes, ordersRes]) => {
+      const orders = ordersRes.data
+      const fromUsers = usersRes.data.map((user) => buildCustomer(user, orders.filter((order) => order.email === user.email)))
+      const userEmails = new Set(usersRes.data.map((user) => user.email))
+      const guestCustomers = Array.from(new Set(orders.filter((order) => !userEmails.has(order.email)).map((order) => order.email)))
+        .map((email) => buildCustomer({ id: email, email, full_name: orders.find((order) => order.email === email)?.customer }, orders.filter((order) => order.email === email)))
+      const merged = [...fromUsers, ...guestCustomers]
+      setCustomers(merged)
+      setSelectedId(merged[0]?.id || null)
+    }).finally(() => setLoading(false))
+  }, [])
+
+  const filtered = useMemo(() => {
+    const query = search.toLowerCase().trim()
+    if (!query) return customers
+    return customers.filter((customer) => customer.name.toLowerCase().includes(query) || customer.email.toLowerCase().includes(query))
+  }, [customers, search])
+
+  const selected = customers.find((customer) => customer.id === selectedId)
 
   return (
-    <div className="flex flex-col h-full">
-      <AdminHeader title="Customer CRM" subtitle="Customer profiles, purchase history, and AI chat insights" />
+    <div className="flex h-full flex-col">
+      <AdminHeader title="Khách hàng" subtitle="Hồ sơ khách hàng, lịch sử mua và insight từ AI chat" />
       <div className="flex-1 overflow-hidden p-6">
-        <div className="flex gap-5 h-full">
-          {/* List */}
-          <div className="w-80 shrink-0 flex flex-col gap-3">
+        <div className="flex h-full gap-5">
+          <div className="flex w-80 shrink-0 flex-col gap-3">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search customers..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-card border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-accent transition-colors"
-              />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm khách hàng..." className="w-full rounded-xl border border-border bg-card py-2.5 pl-9 pr-4 text-sm text-foreground outline-none transition focus:border-accent" />
             </div>
-            <div className="flex flex-col gap-2 overflow-y-auto flex-1">
-              {filtered.map((customer) => (
-                <button
-                  key={customer.id}
-                  onClick={() => setSelectedId(customer.id)}
-                  className={cn(
-                    'w-full text-left p-4 rounded-2xl border transition-all flex items-start gap-3',
-                    selectedId === customer.id
-                      ? 'bg-accent/5 border-accent/30'
-                      : 'bg-card border-border hover:border-foreground/20',
-                  )}
-                >
-                  <div className="w-10 h-10 rounded-xl bg-accent text-accent-foreground flex items-center justify-center text-sm font-bold shrink-0">
-                    {customer.avatar}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-1 mb-0.5">
-                      <p className="text-sm font-semibold text-foreground truncate">{customer.name}</p>
-                      <span className={cn('px-1.5 py-0.5 rounded-md text-[10px] font-bold border shrink-0', segmentColors[customer.segment])}>
-                        {customer.segment}
-                      </span>
+            <div className="flex flex-1 flex-col gap-2 overflow-y-auto">
+              {loading ? (
+                <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">Đang tải khách hàng...</div>
+              ) : filtered.length === 0 ? (
+                <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">Không có khách hàng phù hợp.</div>
+              ) : filtered.map((customer) => (
+                <button key={customer.id} onClick={() => setSelectedId(customer.id)} className={cn('flex w-full items-start gap-3 rounded-xl border p-4 text-left transition', selectedId === customer.id ? 'border-accent/30 bg-accent/5' : 'border-border bg-card hover:border-foreground/20')}>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent text-sm font-bold text-accent-foreground">{initials(customer.name)}</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-0.5 flex items-center justify-between gap-1">
+                      <p className="truncate text-sm font-semibold text-foreground">{customer.name}</p>
+                      <span className={cn('shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-bold', segmentColors[customer.segment])}>{customer.segment}</span>
                     </div>
-                    <p className="text-xs text-muted-foreground truncate">{customer.email}</p>
-                    <p className="text-xs text-accent font-medium mt-1 truncate">{customer.intent}</p>
+                    <p className="truncate text-xs text-muted-foreground">{customer.email}</p>
+                    <p className="mt-1 truncate text-xs font-medium text-accent">{customer.intent}</p>
                   </div>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Detail panel */}
           {selected && (
-            <div className="flex-1 flex flex-col gap-4 overflow-y-auto min-w-0">
-              {/* Profile */}
-              <div className="bg-card border border-border rounded-2xl p-5">
+            <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto">
+              <section className="rounded-xl border border-border bg-card p-5">
                 <div className="flex items-start gap-4">
-                  <div className="w-14 h-14 rounded-2xl bg-accent text-accent-foreground flex items-center justify-center text-lg font-black shrink-0">
-                    {selected.avatar}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 flex-wrap">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-accent text-lg font-black text-accent-foreground">{initials(selected.name)}</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-3">
                       <h2 className="text-lg font-black text-foreground">{selected.name}</h2>
-                      <span className={cn('px-2.5 py-1 rounded-lg text-xs font-bold border', segmentColors[selected.segment])}>
-                        {selected.segment}
-                      </span>
+                      <span className={cn('rounded-lg border px-2.5 py-1 text-xs font-bold', segmentColors[selected.segment])}>{selected.segment}</span>
                     </div>
-                    <p className="text-sm text-muted-foreground mt-0.5">{selected.email}</p>
-                    <div className="flex items-center gap-1.5 mt-2 text-sm text-accent font-medium">
-                      <TrendingUp className="w-4 h-4" />
-                      <span>AI Intent: {selected.intent}</span>
-                    </div>
+                    <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground"><Mail className="h-4 w-4" />{selected.email}</p>
+                    <p className="mt-2 flex items-center gap-1.5 text-sm font-medium text-accent"><TrendingUp className="h-4 w-4" />{selected.intent}</p>
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-4 mt-5 pt-5 border-t border-border">
-                  {[
-                    { label: 'Total Orders', value: selected.totalOrders },
-                    { label: 'Total Spend', value: selected.totalSpend },
-                    { label: 'Last Purchase', value: selected.lastOrder },
-                  ].map(({ label, value }) => (
-                    <div key={label}>
-                      <p className="text-xs text-muted-foreground">{label}</p>
-                      <p className="text-sm font-bold text-foreground mt-0.5 truncate">{value}</p>
-                    </div>
-                  ))}
+                <div className="mt-5 grid gap-4 border-t border-border pt-5 sm:grid-cols-3">
+                  <Metric label="Tổng đơn" value={selected.totalOrders} />
+                  <Metric label="Tổng chi tiêu" value={formatVnd(selected.totalSpend)} />
+                  <Metric label="Mua gần nhất" value={selected.lastOrder} />
                 </div>
-              </div>
+              </section>
 
-              {/* Chat logs */}
-              <div className="bg-card border border-border rounded-2xl overflow-hidden">
-                <div className="px-5 py-4 border-b border-border flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-accent" />
-                  <h3 className="text-sm font-bold text-foreground">AI Chat Insights</h3>
+              <section className="overflow-hidden rounded-xl border border-border bg-card">
+                <div className="flex items-center gap-2 border-b border-border px-5 py-4">
+                  <ShoppingBag className="h-4 w-4 text-accent" />
+                  <h3 className="text-sm font-bold text-foreground">Lịch sử mua hàng</h3>
                 </div>
-                <div className="p-4 space-y-3">
-                  {selected.chatLogs.map((log, i) => (
-                    <div key={i} className={cn('flex gap-2', log.role === 'user' ? 'flex-row-reverse' : '')}>
-                      <div
-                        className={cn(
-                          'w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5',
-                          log.role === 'ai' ? 'bg-accent text-accent-foreground' : 'bg-muted border border-border text-muted-foreground',
-                        )}
-                      >
-                        {log.role === 'ai' ? 'AI' : 'U'}
-                      </div>
-                      <div
-                        className={cn(
-                          'max-w-[85%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed',
-                          log.role === 'ai'
-                            ? 'bg-muted text-foreground rounded-tl-sm border border-border'
-                            : 'bg-accent text-accent-foreground rounded-tr-sm',
-                        )}
-                      >
-                        {log.content}
-                      </div>
+                <div className="p-4">
+                  {selected.totalOrders === 0 ? (
+                    <p className="text-sm text-muted-foreground">Chưa có đơn hàng.</p>
+                  ) : (
+                    <div className="flex items-center justify-between border-b border-border py-2 last:border-0">
+                      <span className="text-sm text-foreground">{selected.lastOrder}</span>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     </div>
-                  ))}
+                  )}
                 </div>
-              </div>
-
-              {/* Purchase history */}
-              <div className="bg-card border border-border rounded-2xl overflow-hidden">
-                <div className="px-5 py-4 border-b border-border flex items-center gap-2">
-                  <ShoppingBag className="w-4 h-4 text-accent" />
-                  <h3 className="text-sm font-bold text-foreground">Purchase History</h3>
-                </div>
-                <div className="p-4 flex flex-col gap-2">
-                  {['iPhone 15 Pro', 'MacBook Air M2', 'AirPods Pro 2nd Gen'].map((item, i) => (
-                    <div key={i} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                      <span className="text-sm text-foreground">{item}</span>
-                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                    </div>
-                  ))}
-                </div>
-              </div>
+              </section>
             </div>
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+function buildCustomer(user: UserDTO, orders: OrderDTO[]): Customer {
+  const totalSpend = orders.reduce((sum, order) => sum + (order.total || 0), 0)
+  const last = orders[0]
+  return {
+    id: user.id || user.email,
+    name: user.full_name || user.username || last?.customer || user.email,
+    email: user.email,
+    role: user.role,
+    totalOrders: orders.length,
+    totalSpend,
+    lastOrder: last?.items?.[0]?.name || last?.items?.[0]?.product_id || 'Chưa có',
+    segment: totalSpend >= 100_000_000 ? 'VIP' : orders.length > 1 ? 'Thường' : 'Mới',
+    intent: last ? `Quan tâm ${last.items?.[0]?.name || 'sản phẩm mới'}` : 'Chưa có tín hiệu mua hàng',
+  }
+}
+
+function initials(name: string) {
+  return name.split(' ').filter(Boolean).slice(-2).map((part) => part[0]?.toUpperCase()).join('') || <User className="h-4 w-4" />
+}
+
+function Metric({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-0.5 truncate text-sm font-bold text-foreground">{value}</p>
     </div>
   )
 }

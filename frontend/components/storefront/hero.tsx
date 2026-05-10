@@ -4,8 +4,10 @@ import { useEffect, useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowRight, Star, Shield, Truck } from 'lucide-react'
+import { useI18n } from '@/lib/i18n'
 
 export function Hero() {
+  const { t } = useI18n()
   const sectionRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
@@ -42,21 +44,20 @@ export function Hero() {
             {/* Badge */}
             <div className="reveal inline-flex items-center gap-2 w-fit px-3.5 py-1.5 rounded-full border border-accent/30 bg-blue-light text-accent text-xs font-semibold tracking-wide uppercase">
               <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse-blue" />
-              New — iPhone 15 Pro Series
+              {t('hero.badge')}
             </div>
 
             {/* Headline */}
             <div className="reveal delay-100 space-y-2">
               <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black tracking-tight text-foreground leading-[1.05] text-balance">
-                Titanium.
+                {t('hero.title.titanium')}
                 <br />
-                <span className="text-accent">Strong.</span>
+                <span className="text-accent">{t('hero.title.strong')}</span>
                 <br />
-                Light.
+                {t('hero.title.light')}
               </h1>
               <p className="text-lg text-muted-foreground leading-relaxed max-w-md mt-4">
-                The most powerful iPhone ever. Pro camera system with 5x optical zoom,
-                A17 Pro chip, and a beautiful titanium design.
+                {t('hero.desc')}
               </p>
             </div>
 
@@ -77,7 +78,7 @@ export function Hero() {
                   ))}
                   <span className="text-sm font-semibold text-foreground ml-1">4.9</span>
                 </div>
-                <span className="text-xs text-muted-foreground">from 2,400+ reviews</span>
+                <span className="text-xs text-muted-foreground">{t('hero.reviews')}</span>
               </div>
             </div>
 
@@ -87,22 +88,22 @@ export function Hero() {
                 href="#products"
                 className="inline-flex items-center gap-2 bg-accent text-accent-foreground px-6 py-3 rounded-xl font-semibold text-sm hover:bg-blue-dark transition-all duration-200 hover:shadow-lg hover:shadow-accent/25 active:scale-95"
               >
-                Shop iPhone 15 Pro
+                {t('hero.cta.buy')}
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
                 href="#categories"
                 className="inline-flex items-center gap-2 bg-secondary text-secondary-foreground px-6 py-3 rounded-xl font-semibold text-sm hover:bg-muted transition-all duration-200 border border-border"
               >
-                Browse All
+                {t('hero.cta.browse')}
               </Link>
             </div>
 
             {/* Trust pills */}
             <div className="reveal delay-400 flex flex-wrap gap-3">
               {[
-                { icon: Truck, text: 'Free shipping' },
-                { icon: Shield, text: '24-month warranty' },
+                { icon: Truck, text: t('hero.trust.shipping') },
+                { icon: Shield, text: t('hero.trust.warranty') },
               ].map(({ icon: Icon, text }) => (
                 <div
                   key={text}
@@ -134,16 +135,16 @@ export function Hero() {
 
             {/* Floating spec cards */}
             <div className="absolute top-8 left-4 glass rounded-2xl px-4 py-3 shadow-lg animate-fade-in delay-500">
-              <p className="text-xs text-muted-foreground">Chip</p>
+              <p className="text-xs text-muted-foreground">{t('hero.spec.chip')}</p>
               <p className="text-sm font-bold text-foreground">A17 Pro</p>
             </div>
             <div className="absolute bottom-12 right-2 glass rounded-2xl px-4 py-3 shadow-lg animate-fade-in delay-500">
-              <p className="text-xs text-muted-foreground">Camera</p>
-              <p className="text-sm font-bold text-foreground">48 MP · 5x zoom</p>
+              <p className="text-xs text-muted-foreground">{t('hero.spec.camera')}</p>
+              <p className="text-sm font-bold text-foreground">{t('hero.spec.camera_desc')}</p>
             </div>
             <div className="absolute top-1/2 right-0 translate-y-4 glass rounded-2xl px-4 py-3 shadow-lg animate-fade-in delay-400">
-              <p className="text-xs text-muted-foreground">From</p>
-              <p className="text-sm font-bold text-accent">29,990,000₫</p>
+              <p className="text-xs text-muted-foreground">{t('hero.spec.from')}</p>
+              <p className="text-sm font-bold text-accent">{t('hero.price')}</p>
             </div>
           </div>
         </div>

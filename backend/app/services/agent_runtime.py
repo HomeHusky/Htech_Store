@@ -73,6 +73,10 @@ def _product_name(row: dict[str, Any]) -> str:
 
 def _infer_category(message: str) -> str | None:
     text = message.lower()
+    if any(term in text for term in ["điện thoại", "dien thoai", "smartphone", "phone", "iphone"]):
+        return "phone"
+    if any(term in text for term in ["pc", "máy tính bàn", "may tinh ban", "gaming"]):
+        return "pc"
     if any(term in text for term in ["laptop", "macbook", "notebook"]):
         return "laptop"
     if any(term in text for term in ["iphone", "điện thoại", "dien thoai", "smartphone", "phone"]):
@@ -94,6 +98,76 @@ def _extract_budget(message: str) -> int | None:
 
     numbers = [int(value) for value in re.findall(r"\b\d{7,}\b", text)]
     return min(numbers) if numbers else None
+
+
+def _is_broad_purchase_request(message: str) -> bool:
+    text = message.lower()
+    has_purchase_intent = any(term in text for term in ["mua", "tư vấn", "tu van", "cần", "can", "want", "buy"])
+    has_category = _infer_category(message) in {"pc", "phone", "laptop", "tablet"}
+    has_budget = _extract_budget(message) is not None
+    has_specific_need = any(
+        term in text
+        for term in [
+            "gaming",
+            "đồ họa",
+            "do hoa",
+            "render",
+            "văn phòng",
+            "van phong",
+            "học",
+            "hoc",
+            "camera",
+            "pin",
+            "màn hình",
+            "man hinh",
+            "ram",
+            "ssd",
+            "rtx",
+            "iphone",
+            "samsung",
+            "dưới",
+            "duoi",
+            "trên",
+            "tren",
+            "triệu",
+            "trieu",
+        ]
+    )
+    return has_purchase_intent and has_category and not has_budget and not has_specific_need
+
+
+def _needs_discovery_answer(message: str) -> str:
+    category = _infer_category(message)
+    if category == "pc":
+        focus = "PC"
+        questions = [
+            "Bạn dùng chính cho gaming, đồ họa/render, làm việc văn phòng hay học tập?",
+            "Ngân sách dự kiến khoảng bao nhiêu triệu?",
+            "Bạn đã có màn hình/phím/chuột chưa, hay cần trọn bộ?",
+            "Bạn ưu tiên hiệu năng, nâng cấp lâu dài hay máy nhỏ gọn/êm?",
+        ]
+    elif category == "phone":
+        focus = "điện thoại"
+        questions = [
+            "Ngân sách dự kiến khoảng bao nhiêu triệu?",
+            "Bạn ưu tiên camera, pin, màn hình, chơi game hay máy nhỏ gọn?",
+            "Bạn thích iPhone, Samsung hay hãng nào khác?",
+            "Bạn cần dung lượng bộ nhớ khoảng bao nhiêu?",
+        ]
+    else:
+        focus = "sản phẩm"
+        questions = [
+            "Bạn dùng chính cho nhu cầu nào?",
+            "Ngân sách dự kiến khoảng bao nhiêu triệu?",
+            "Bạn ưu tiên thương hiệu, hiệu năng, độ bền hay thiết kế?",
+        ]
+
+    return (
+        f"Được, mình sẽ tư vấn {focus} sát nhu cầu trước khi chốt mẫu.\n\n"
+        "Bạn cho mình thêm vài thông tin nhé:\n"
+        + "\n".join(f"- {question}" for question in questions)
+        + "\n\nCó các thông tin này mình mới lọc sản phẩm HTech phù hợp và gửi link xem chi tiết cho bạn."
+    )
 
 
 def _extract_voucher_code(message: str) -> str:
@@ -133,7 +207,9 @@ def _catalog_fallback(rows: list[dict[str, Any]], message: str) -> str:
     for row in visible_rows[:3]:
         discount = int(row.get("discount") or 0)
         suffix = f", đang giảm {discount}%" if discount else ""
-        bullets.append(f"- {_product_name(row)}: {_format_vnd(row.get('price'))}{suffix}.")
+        slug = row.get("slug") or row.get("id") or ""
+        link = f" Xem: /products/{slug}" if slug else ""
+        bullets.append(f"- {_product_name(row)}: {_format_vnd(row.get('price'))}{suffix}.{link}")
     return prefix + "\n" + "\n".join(bullets) + "\nBạn muốn mình chốt theo ngân sách hay hiệu năng?"
 
 
@@ -191,9 +267,17 @@ async def invoke_agent(db: Session, session_id: str, message: str, locale: str) 
         }
 
     if intent == "search_catalog":
+        if _is_broad_purchase_request(message):
+            return {
+                "answer": _needs_discovery_answer(message),
+                "tool": "needs_discovery",
+                "payload": {"products": []},
+                "debug": {"reason": "broad_purchase_request"},
+            }
+
         rows = hybrid_search_products(db, message, category=_infer_category(message))
         context = "\n".join(
-            f"- {_product_name(row)} | {_format_vnd(row.get('price'))} | {row.get('category')}"
+            f"- {_product_name(row)} | {_format_vnd(row.get('price'))} | {row.get('category')} | /products/{row.get('slug') or row.get('id')}"
             for row in rows[:5]
         ) or "Không có sản phẩm khớp."
         answer = await generate_admin_configured_answer(

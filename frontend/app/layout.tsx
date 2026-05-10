@@ -23,6 +23,10 @@ export const metadata: Metadata = {
     'HTech Store — Cửa hàng công nghệ hàng đầu Việt Nam. iPhone, MacBook, PC Gaming chính hãng. Bảo hành toàn quốc, trả góp 0%, giao hàng miễn phí.',
   generator: 'v0.app',
   keywords: ['iPhone', 'MacBook', 'gaming PC', 'laptop', 'Việt Nam', 'cửa hàng công nghệ', 'HTech'],
+  icons: {
+    icon: '/favicon.jpg',
+    apple: '/favicon.jpg',
+  },
 }
 
 export const viewport: Viewport = {

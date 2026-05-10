@@ -20,14 +20,20 @@ class ModelCatalogResponse(BaseModel):
 class CategoryDTO(BaseModel):
     id: str = Field(..., min_length=2, pattern="^[a-zA-Z0-9_]+$")
     slug: str = Field(..., min_length=2)
-    name: dict
+    name: dict = Field(...)
 
-    @field_validator("name")
+    @field_validator("name", mode="before")
     @classmethod
     def name_must_not_be_empty(cls, v: dict):
-        if not v.get("vi") or len(v["vi"].strip()) == 0:
+        if not isinstance(v, dict):
+            raise ValueError("Tên danh mục phải là object")
+        if not v.get("vi") or len(str(v.get("vi", "")).strip()) == 0:
             raise ValueError("Tên hiển thị (Tiếng Việt) không được để trống")
-        return v
+        # Ensure vi and en fields exist
+        return {
+            "vi": str(v.get("vi", "")).strip(),
+            "en": str(v.get("en", v.get("vi", ""))).strip()
+        }
 
 
 class AISettingsDTO(BaseModel):
@@ -41,6 +47,11 @@ class AISettingsDTO(BaseModel):
     system_prompt: str | None = None
     telegram_bot_token: str | None = None
     telegram_chat_id: str | None = None
+    chat_model_order: list[dict] = Field(default_factory=list)
+    task_model_config: dict = Field(default_factory=dict)
+    reasoning_model_count: int = 1
+    query_transformer_provider: str | None = None
+    query_transformer_model: str | None = None
 
 
 class PolicyUpdateDTO(BaseModel):
@@ -60,6 +71,9 @@ class PolicyResponseDTO(BaseModel):
 
 class ModelTestRequestDTO(BaseModel):
     prompt: str = "Please introduce yourself as the store concierge in 2 short sentences."
+    provider: str | None = None
+    model: str | None = None
+    task: str | None = None
 
 
 class ModelTestResponseDTO(BaseModel):
@@ -69,27 +83,41 @@ class ModelTestResponseDTO(BaseModel):
     answer: str
 
 
+class QueryTransformerRequestDTO(BaseModel):
+    question: str = Field(..., min_length=2)
+    provider: str | None = None
+    model: str | None = None
+
+
+class QueryTransformerResponseDTO(BaseModel):
+    provider: str
+    model: str
+    original_question: str
+    transformed_query: str
+    context: dict
+
+
 class ProductDTO(BaseModel):
     id: str | None = None
     slug: str = Field(..., min_length=2)
     name: dict
     brand: str = "Htech"
     category: str = Field(..., min_length=1)
-    tagline: dict = {}
-    basePrice: int = Field(..., gt=0, alias="basePrice")
+    tagline: dict = Field(default_factory=dict)
+    basePrice: int = Field(..., gt=0)
     is_trade_in: bool = False
     image: str = Field(..., min_length=1)
-    gallery: list[str] = []
-    description: dict
-    details: dict = {}
-    highlightSpecs: list[str] = Field(default_factory=list, alias="highlightSpecs")
+    gallery: list[str] = Field(default_factory=list)
+    description: dict = Field(default_factory=dict)
+    details: dict = Field(default_factory=dict)
+    highlightSpecs: list[str] = Field(default_factory=list)
     available: bool = True
     trending: bool = False
-    isNew: bool = Field(default=False, alias="isNew")
+    isNew: bool = False
     stock: int = 10
     rating: float = 5.0
-    reviewCount: int = Field(default=0, alias="reviewCount")
-    discountPercent: int = Field(default=0, alias="discountPercent")
+    reviewCount: int = 0
+    discountPercent: int = 0
 
     class Config:
         populate_by_name = True
@@ -98,8 +126,17 @@ class ProductDTO(BaseModel):
     @field_validator("name")
     @classmethod
     def name_must_not_be_empty(cls, v: dict):
-        if not v.get("vi") or len(v["vi"].strip()) == 0:
+        if not isinstance(v, dict):
+            raise ValueError("Tên sản phẩm phải là object chứa vi và en")
+        if not v.get("vi") or len(str(v.get("vi", "")).strip()) == 0:
             raise ValueError("Tên sản phẩm không được để trống")
+        return v
+    
+    @field_validator("description", mode="before")
+    @classmethod
+    def description_defaults(cls, v):
+        if not v or not isinstance(v, dict):
+            return {"vi": "", "en": ""}
         return v
 
 

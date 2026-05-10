@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import {
   Search,
   ShoppingBag,
@@ -32,10 +33,10 @@ export function Navbar() {
   const { totalItems } = useCart()
 
   const navLinks = [
-    { label: t('nav.iphone'), href: '/products?category=iPhone' },
-    { label: t('nav.macbook'), href: '/products?category=MacBook' },
-    { label: t('nav.gaming'), href: '/products?category=Gaming' },
-    { label: t('nav.accessories'), href: '/products?category=Accessories' },
+    { label: t('nav.iphone'), href: '/products?category=phone' },
+    { label: t('nav.macbook'), href: '/products?category=laptop' },
+    { label: t('nav.gaming'), href: '/products?category=pc' },
+    { label: t('nav.accessories'), href: '/products?category=accessory' },
     { label: t('nav.deals'), href: '/products?badge=Sale' },
   ]
 
@@ -91,9 +92,7 @@ export function Navbar() {
               href="/"
               className="flex items-center gap-2 font-semibold text-lg tracking-tight text-foreground shrink-0"
             >
-              <div className="w-7 h-7 bg-foreground rounded-lg flex items-center justify-center">
-                <span className="text-background text-xs font-black">H</span>
-              </div>
+              <Image src="/favicon.jpg" alt="HTech" width={28} height={28} className="h-7 w-7 rounded-lg object-cover" />
               HTech
             </Link>
 

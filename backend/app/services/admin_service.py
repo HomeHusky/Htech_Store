@@ -89,6 +89,23 @@ def get_or_create_ai_settings(db: Session) -> AISetting:
             dirty = True
         except ImportError:
             pass
+    if not setting.chat_model_order:
+        setting.chat_model_order = [
+            {"provider": "gemini", "model": "gemini-1.5-flash"},
+            {"provider": "openai", "model": "gpt-4o-mini"},
+            {"provider": "phi4", "model": "Phi-4"},
+        ]
+        dirty = True
+    if not setting.task_model_config:
+        setting.task_model_config = {
+            "search_catalog": {"provider": setting.chat_provider, "model": setting.chat_model},
+            "query_policy_rag": {"provider": setting.chat_provider, "model": setting.chat_model},
+            "query_transformer": {"provider": setting.chat_provider, "model": setting.chat_model},
+        }
+        dirty = True
+    if not setting.reasoning_model_count:
+        setting.reasoning_model_count = 1
+        dirty = True
 
     # Auto-heal legacy studio branding prompt left from older datasets.
     if setting.system_prompt:
@@ -129,6 +146,11 @@ def update_ai_settings(db: Session, payload: AISettingsDTO) -> AISetting:
     setting.system_prompt = payload.system_prompt
     setting.telegram_bot_token = payload.telegram_bot_token
     setting.telegram_chat_id = payload.telegram_chat_id
+    setting.chat_model_order = payload.chat_model_order
+    setting.task_model_config = payload.task_model_config
+    setting.reasoning_model_count = max(1, int(payload.reasoning_model_count or 1))
+    setting.query_transformer_provider = payload.query_transformer_provider
+    setting.query_transformer_model = payload.query_transformer_model
     db.commit()
     db.refresh(setting)
     return setting
@@ -156,11 +178,14 @@ def upsert_primary_policy(db: Session, payload: PolicyUpdateDTO) -> StorePolicy:
         policy.title = payload.title
         policy.content = payload.content
 
-    policy.embedding = embed_query(
-        payload.content,
-        provider=setting.embedding_provider,
-        model=setting.embedding_model,
-    )
+    try:
+        policy.embedding = embed_query(
+            payload.content,
+            provider=setting.embedding_provider,
+            model=setting.embedding_model,
+        )
+    except Exception as exc:
+        print(f"Policy embedding failed; saving policy without vector refresh: {exc}")
     db.commit()
     db.refresh(policy)
     return policy

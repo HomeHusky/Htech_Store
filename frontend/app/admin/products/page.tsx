@@ -1,16 +1,24 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { Check, Edit2, Plus, Search, Sparkles, Trash2 } from 'lucide-react'
 import { AdminHeader } from '@/components/admin/header'
+import { ProductEditModal } from '@/components/admin/product-edit-modal'
 import { cn } from '@/lib/utils'
 import api from '@/lib/api'
 import { fetchAdminProducts, formatVnd, localized, type ProductDTO } from '@/lib/products-api'
+import { useI18n } from '@/lib/i18n'
 
-function statusOf(product: ProductDTO) {
-  if (!product.available) return 'Nháp'
-  if (product.stock <= 0) return 'Hết hàng'
-  return 'Đang bán'
+type Category = {
+  id: string
+  slug: string
+  name: { vi: string; en: string }
+}
+
+function statusOf(product: ProductDTO, t: any) {
+  if (!product.available) return t('admin.draft')
+  if (product.stock <= 0) return t('admin.out_stock')
+  return t('admin.selling')
 }
 
 const statusConfig = {
@@ -52,10 +60,17 @@ function slugify(value: string) {
 }
 
 export default function ProductsPage() {
+  const { t } = useI18n()
   const [products, setProducts] = useState<ProductDTO[]>([])
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [editValues, setEditValues] = useState<{ price: string; stock: string; discount: string }>({ price: '', stock: '', discount: '' })
+  const [editValues, setEditValues] = useState<{ price: string; stock: string; discount: string; image: string; gallery: string }>({
+    price: '',
+    stock: '',
+    discount: '',
+    image: '',
+    gallery: '',
+  })
   const [optimizingId, setOptimizingId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
@@ -78,16 +93,28 @@ export default function ProductsPage() {
 
   const startEdit = (product: ProductDTO) => {
     setEditingId(product.id)
-    setEditValues({ price: String(product.basePrice), stock: String(product.stock), discount: String(product.discountPercent) })
+    setEditValues({
+      price: String(product.basePrice),
+      stock: String(product.stock),
+      discount: String(product.discountPercent),
+      image: product.image || '',
+      gallery: (product.gallery || []).join('\n'),
+    })
   }
 
   const saveEdit = async (product: ProductDTO) => {
+    const gallery = editValues.gallery
+      .split(/\r?\n|,/)
+      .map((url) => url.trim())
+      .filter(Boolean)
     const updated = {
       ...product,
       basePrice: Number(editValues.price) || product.basePrice,
       stock: Number(editValues.stock),
       discountPercent: Number(editValues.discount) || 0,
       available: Number(editValues.stock) > 0,
+      image: editValues.image.trim() || product.image,
+      gallery,
     }
     await api.put(`/admin/products/${product.id}`, updated)
     setEditingId(null)
@@ -102,7 +129,7 @@ export default function ProductsPage() {
   }
 
   const deleteProduct = async (product: ProductDTO) => {
-    if (!confirm(`Xóa sản phẩm "${localized(product.name)}"?`)) return
+    if (!confirm(t('admin.confirm_delete') + ` "${localized(product.name)}"?`)) return
     await api.delete(`/admin/products/${product.id}`)
     await loadProducts()
   }
@@ -132,7 +159,7 @@ export default function ProductsPage() {
             <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Tìm sản phẩm..."
+              placeholder={t('admin.search_placeholder')}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               className="w-64 rounded-lg border border-border bg-card py-2.5 pl-9 pr-4 text-sm text-foreground outline-none transition focus:border-accent"
@@ -140,7 +167,7 @@ export default function ProductsPage() {
           </div>
           <button onClick={() => setShowAddModal(true)} className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground transition hover:bg-blue-dark">
             <Plus className="h-4 w-4" />
-            Thêm sản phẩm
+            {t('admin.add_product')}
           </button>
         </div>
 
@@ -149,7 +176,16 @@ export default function ProductsPage() {
             <table className="w-full min-w-[1000px]">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
-                  {['Sản phẩm', 'SKU/Slug', 'Danh mục', 'Giá', 'Tồn kho', 'Trạng thái', 'AI SEO', 'Thao tác'].map((heading) => (
+                  {[
+                    t('admin.product_name'),
+                    t('admin.sku'),
+                    t('admin.category'),
+                    t('admin.price'),
+                    t('admin.stock'),
+                    t('admin.status'),
+                    t('admin.ai_seo'),
+                    t('admin.actions'),
+                  ].map((heading) => (
                     <th key={heading} className="whitespace-nowrap px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">
                       {heading}
                     </th>
@@ -160,16 +196,17 @@ export default function ProductsPage() {
                 {loading ? (
                   <tr>
                     <td colSpan={8} className="px-5 py-10 text-center text-sm text-muted-foreground">
-                      Đang tải sản phẩm...
+                      {t('admin.loading')}
                     </td>
                   </tr>
                 ) : (
                   filtered.map((product) => {
                     const isEditing = editingId === product.id
                     const isOptimizing = optimizingId === product.id
-                    const status = statusOf(product)
+                    const status = statusOf(product, t)
                     return (
-                      <tr key={product.id} className="transition hover:bg-muted/20">
+                      <Fragment key={product.id}>
+                      <tr className="transition hover:bg-muted/20">
                         <td className="px-5 py-4">
                           <p className="max-w-[220px] truncate text-sm font-semibold text-foreground">{localized(product.name)}</p>
                           <p className="mt-0.5 text-xs text-muted-foreground">{product.brand}</p>
@@ -204,7 +241,7 @@ export default function ProductsPage() {
                           ) : (
                             <button onClick={() => optimizeAI(product)} disabled={isOptimizing} className="flex items-center gap-1.5 rounded-lg bg-accent/10 px-2.5 py-1.5 text-xs font-semibold text-accent transition hover:bg-accent/20 disabled:opacity-60">
                               <Sparkles className={cn('h-3 w-3', isOptimizing && 'animate-spin')} />
-                              {isOptimizing ? 'Đang tối ưu...' : 'Tối ưu'}
+                              {isOptimizing ? t('admin.optimizing') : t('admin.optimize')}
                             </button>
                           )}
                         </td>
@@ -213,12 +250,12 @@ export default function ProductsPage() {
                             {isEditing ? (
                               <button onClick={() => saveEdit(product)} className="flex items-center gap-1 rounded-lg bg-green-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-green-600">
                                 <Check className="h-3.5 w-3.5" />
-                                Lưu
+                                {t('common.save')}
                               </button>
                             ) : (
                               <button onClick={() => startEdit(product)} className="flex items-center gap-1 rounded-lg border border-border bg-muted px-3 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary">
                                 <Edit2 className="h-3 w-3" />
-                                Sửa
+                                {t('common.edit')}
                               </button>
                             )}
                             <button onClick={() => deleteProduct(product)} className="rounded-lg p-2 text-muted-foreground hover:bg-red-500/10 hover:text-red-500">
@@ -227,6 +264,25 @@ export default function ProductsPage() {
                           </div>
                         </td>
                       </tr>
+                      {isEditing && (
+                        <tr className="bg-muted/20">
+                          <td colSpan={8} className="px-5 py-4">
+                            <div className="grid gap-4 lg:grid-cols-[1fr_1.4fr]">
+                              <Input label={t('admin.image')} value={editValues.image} onChange={(value) => setEditValues((current) => ({ ...current, image: value }))} />
+                              <label className="block text-sm font-medium text-foreground">
+                                {t('admin.gallery')}
+                                <textarea
+                                  value={editValues.gallery}
+                                  onChange={(event) => setEditValues((current) => ({ ...current, gallery: event.target.value }))}
+                                  rows={3}
+                                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+                                />
+                              </label>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      </Fragment>
                     )
                   })
                 )}
@@ -240,22 +296,39 @@ export default function ProductsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <button className="absolute inset-0 bg-foreground/60" onClick={() => setShowAddModal(false)} aria-label="Đóng" />
           <div className="relative w-full max-w-2xl rounded-xl border border-border bg-card p-6 shadow-xl">
-            <h2 className="text-lg font-bold text-foreground">Thêm sản phẩm</h2>
+            <h2 className="text-lg font-bold text-foreground">{t('admin.add_product')}</h2>
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <Input label="Tên sản phẩm" value={localized(newProduct.name)} onChange={(value) => setNewProduct({ ...newProduct, name: { vi: value, en: value }, slug: newProduct.slug || slugify(value) })} />
-              <Input label="Slug" value={newProduct.slug} onChange={(value) => setNewProduct({ ...newProduct, slug: slugify(value) })} />
-              <Input label="Thương hiệu" value={newProduct.brand} onChange={(value) => setNewProduct({ ...newProduct, brand: value })} />
-              <Input label="Danh mục" value={newProduct.category} onChange={(value) => setNewProduct({ ...newProduct, category: value })} />
-              <Input label="Giá" value={String(newProduct.basePrice)} onChange={(value) => setNewProduct({ ...newProduct, basePrice: Number(value) || 0 })} />
-              <Input label="Tồn kho" value={String(newProduct.stock)} onChange={(value) => setNewProduct({ ...newProduct, stock: Number(value) || 0 })} />
-              <Input label="Ảnh" value={newProduct.image} onChange={(value) => setNewProduct({ ...newProduct, image: value })} className="sm:col-span-2" />
+              <Input label={t('admin.product_name')} value={localized(newProduct.name)} onChange={(value) => setNewProduct({ ...newProduct, name: { vi: value, en: value }, slug: newProduct.slug || slugify(value) })} />
+              <Input label={t('admin.slug')} value={newProduct.slug} onChange={(value) => setNewProduct({ ...newProduct, slug: slugify(value) })} />
+              <Input label={t('admin.brand')} value={newProduct.brand} onChange={(value) => setNewProduct({ ...newProduct, brand: value })} />
+              <Input label={t('admin.category')} value={newProduct.category} onChange={(value) => setNewProduct({ ...newProduct, category: value })} />
+              <Input label={t('admin.price')} value={String(newProduct.basePrice)} onChange={(value) => setNewProduct({ ...newProduct, basePrice: Number(value) || 0 })} />
+              <Input label={t('admin.stock')} value={String(newProduct.stock)} onChange={(value) => setNewProduct({ ...newProduct, stock: Number(value) || 0 })} />
+              <Input label={t('admin.image')} value={newProduct.image} onChange={(value) => setNewProduct({ ...newProduct, image: value })} className="sm:col-span-2" />
+              <label className="block text-sm font-medium text-foreground sm:col-span-2">
+                {t('admin.gallery')}
+                <textarea
+                  value={(newProduct.gallery || []).join('\n')}
+                  onChange={(event) =>
+                    setNewProduct({
+                      ...newProduct,
+                      gallery: event.target.value
+                        .split(/\r?\n|,/)
+                        .map((url) => url.trim())
+                        .filter(Boolean),
+                    })
+                  }
+                  rows={3}
+                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+                />
+              </label>
             </div>
             <div className="mt-6 flex gap-3">
               <button onClick={createProduct} className="h-10 flex-1 rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground hover:bg-accent/90">
-                Tạo sản phẩm
+                {t('admin.add_new')}
               </button>
               <button onClick={() => setShowAddModal(false)} className="h-10 flex-1 rounded-lg border border-border text-sm font-semibold hover:bg-muted">
-                Hủy
+                {t('admin.cancel')}
               </button>
             </div>
           </div>

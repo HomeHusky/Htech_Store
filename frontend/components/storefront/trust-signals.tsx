@@ -2,42 +2,44 @@
 
 import { useEffect, useRef } from 'react'
 import { Truck, ShieldCheck, Bot, RotateCcw, Phone, Award } from 'lucide-react'
-
-const signals = [
-  {
-    icon: Truck,
-    title: 'Free Shipping',
-    desc: 'On all orders over 5,000,000₫ nationwide.',
-  },
-  {
-    icon: ShieldCheck,
-    title: '24-Month Warranty',
-    desc: 'Official manufacturer warranty on every product.',
-  },
-  {
-    icon: Bot,
-    title: 'AI-Powered Support',
-    desc: '24/7 AI concierge for instant answers and recommendations.',
-  },
-  {
-    icon: RotateCcw,
-    title: '30-Day Returns',
-    desc: 'Hassle-free returns and exchanges on all items.',
-  },
-  {
-    icon: Phone,
-    title: 'Expert Consultation',
-    desc: 'Speak with a tech specialist before you buy.',
-  },
-  {
-    icon: Award,
-    title: 'Certified Authentic',
-    desc: '100% genuine products from official distributors.',
-  },
-]
+import { useI18n } from '@/lib/i18n'
 
 export function TrustSignals() {
+  const { t } = useI18n()
   const sectionRef = useRef<HTMLElement>(null)
+
+  const signals = [
+    {
+      icon: Truck,
+      title: t('trust.shipping'),
+      desc: t('trust.shipping.full'),
+    },
+    {
+      icon: ShieldCheck,
+      title: t('trust.warranty'),
+      desc: t('trust.warranty.full'),
+    },
+    {
+      icon: Bot,
+      title: t('trust.ai.title'),
+      desc: t('trust.ai.desc'),
+    },
+    {
+      icon: RotateCcw,
+      title: t('trust.return'),
+      desc: t('trust.return.full'),
+    },
+    {
+      icon: Phone,
+      title: t('trust.expert.title'),
+      desc: t('trust.expert.desc'),
+    },
+    {
+      icon: Award,
+      title: t('trust.authentic.title'),
+      desc: t('trust.authentic.desc'),
+    },
+  ]
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -53,10 +55,10 @@ export function TrustSignals() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="reveal text-center mb-12">
           <p className="text-xs font-semibold text-accent uppercase tracking-widest mb-3">
-            Why HTech Store
+            {t('trust.title')}
           </p>
           <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-balance">
-            Shop with confidence.
+            {t('trust.subtitle')}
           </h2>
         </div>
 

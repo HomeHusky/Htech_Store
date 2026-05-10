@@ -7,18 +7,12 @@ import { Flame, Heart, ShoppingCart, Star, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCart, allProducts, type Product } from '@/lib/store'
 import { fetchProducts } from '@/lib/products-api'
+import { useI18n } from '@/lib/i18n'
 
 const filters = ['Tất cả', 'phone', 'laptop', 'pc', 'tablet', 'accessory']
-const filterLabels: Record<string, string> = {
-  'Tất cả': 'Tất cả',
-  phone: 'Điện thoại',
-  laptop: 'Laptop',
-  pc: 'PC',
-  tablet: 'Tablet',
-  accessory: 'Phụ kiện',
-}
 
 function ProductCard({ product }: { product: Product }) {
+  const { t } = useI18n()
   const [wished, setWished] = useState(false)
   const [addedToCart, setAddedToCart] = useState(false)
   const { addItem } = useCart()
@@ -51,7 +45,7 @@ function ProductCard({ product }: { product: Product }) {
       <button
         onClick={() => setWished(!wished)}
         className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-background/80 opacity-0 backdrop-blur transition hover:scale-110 group-hover:opacity-100"
-        aria-label="Thêm vào yêu thích"
+        aria-label={t('common.add')}
       >
         <Heart className={cn('h-4 w-4', wished ? 'fill-red-500 text-red-500' : 'text-muted-foreground')} />
       </button>
@@ -68,7 +62,7 @@ function ProductCard({ product }: { product: Product }) {
             ))}
           </div>
           <span className="text-xs text-muted-foreground">
-            {product.rating} ({product.reviews.toLocaleString('vi-VN')})
+            {product.rating} ({product.reviews.toLocaleString()})
           </span>
         </div>
 
@@ -82,7 +76,7 @@ function ProductCard({ product }: { product: Product }) {
             <p className="text-lg font-black text-foreground">{product.priceFormatted}</p>
             {product.originalPriceFormatted && <p className="text-xs text-muted-foreground line-through">{product.originalPriceFormatted}</p>}
           </div>
-          {product.stock <= 5 && <p className="text-xs font-semibold text-red-500">Còn {product.stock}</p>}
+          {product.stock <= 5 && <p className="text-xs font-semibold text-red-500">{t('products.only')} {product.stock} {t('products.left')}</p>}
         </div>
 
         <button
@@ -90,7 +84,7 @@ function ProductCard({ product }: { product: Product }) {
           className={cn('mt-1 flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition', addedToCart ? 'bg-green-500 text-white' : 'bg-foreground text-background hover:bg-accent')}
         >
           <ShoppingCart className="h-4 w-4" />
-          {addedToCart ? 'Đã thêm' : 'Thêm vào giỏ'}
+          {addedToCart ? t('products.added') : t('products.quickadd')}
         </button>
       </div>
     </article>
@@ -98,9 +92,19 @@ function ProductCard({ product }: { product: Product }) {
 }
 
 export function ProductSection() {
+  const { t } = useI18n()
   const sectionRef = useRef<HTMLElement>(null)
   const [activeFilter, setActiveFilter] = useState('Tất cả')
   const [products, setProducts] = useState<Product[]>(allProducts)
+
+  const filterLabels: Record<string, string> = {
+    'Tất cả': t('products.all'),
+    phone: t('cat.iphone'),
+    laptop: t('cat.macbook'),
+    pc: t('cat.gaming'),
+    tablet: 'Tablet',
+    accessory: t('cat.accessories'),
+  }
 
   useEffect(() => {
     fetchProducts()
@@ -124,8 +128,8 @@ export function ProductSection() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="reveal mb-10 flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-accent">Sản phẩm nổi bật</p>
-            <h2 className="text-balance text-3xl font-black tracking-tight text-foreground sm:text-4xl">Gợi ý tốt nhất cho bạn.</h2>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-accent">{t('products.featured')}</p>
+            <h2 className="text-balance text-3xl font-black tracking-tight text-foreground sm:text-4xl">{t('products.title')}</h2>
           </div>
           <div className="flex flex-wrap gap-2">
             {filters.map((filter) => (
@@ -148,7 +152,7 @@ export function ProductSection() {
 
         <div className="reveal delay-200 mt-10 flex justify-center">
           <Link href="/products" className="rounded-lg border border-border px-8 py-3 text-sm font-semibold text-muted-foreground transition hover:border-foreground hover:text-foreground">
-            Xem tất cả sản phẩm
+            {t('products.viewall')}
           </Link>
         </div>
       </div>

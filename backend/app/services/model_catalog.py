@@ -6,9 +6,8 @@ from app.core.config import settings
 from app.schemas.admin import ModelOption, ProviderOption
 
 DEFAULT_GEMINI_CHAT = [
-    "gemini-2.0-flash",
+    "gemini-1.5-flash",
     "gemini-2.5-flash",
-    "gemini-2.5-pro",
 ]
 DEFAULT_GEMINI_EMBED = ["gemini-embedding-001", "gemini_embedding-2"]
 DEFAULT_OPENAI_CHAT = ["gpt-4o-mini", "gpt-4o", "gpt-4.1-mini"]

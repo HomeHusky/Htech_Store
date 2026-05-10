@@ -314,7 +314,7 @@ class AISetting(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
     chat_provider: Mapped[str] = mapped_column(String, nullable=False, default="gemini")
-    chat_model: Mapped[str] = mapped_column(String, nullable=False, default="gemini-2.0-flash")
+    chat_model: Mapped[str] = mapped_column(String, nullable=False, default="gemini-1.5-flash")
     embedding_provider: Mapped[str] = mapped_column(String, nullable=False, default="gemini")
     embedding_model: Mapped[str] = mapped_column(String, nullable=False, default="gemini-embedding-001")
     google_client_id: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -323,6 +323,11 @@ class AISetting(Base):
     system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
     telegram_bot_token: Mapped[str | None] = mapped_column(String, nullable=True)
     telegram_chat_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    chat_model_order: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    task_model_config: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    reasoning_model_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    query_transformer_provider: Mapped[str | None] = mapped_column(String, nullable=True)
+    query_transformer_model: Mapped[str | None] = mapped_column(String, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

@@ -1,253 +1,268 @@
 'use client'
 
-import { useState } from 'react'
-import { Bot, Send, Sparkles, ChevronDown, Save } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { useEffect, useMemo, useState } from 'react'
+import { ArrowDown, ArrowUp, Bot, RefreshCw, Save, Send, Sparkles } from 'lucide-react'
 import { AdminHeader } from '@/components/admin/header'
+import api from '@/lib/api'
+import { cn } from '@/lib/utils'
 
-const models = [
-  { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', provider: 'Google', badge: 'Fast' },
-  { id: 'gpt-4o', label: 'GPT-4o', provider: 'OpenAI', badge: 'Smart' },
-  { id: 'phi-4', label: 'Phi-4', provider: 'Microsoft', badge: 'Efficient' },
-  { id: 'claude-opus-4', label: 'Claude Opus 4', provider: 'Anthropic', badge: 'Precise' },
+type ProviderOption = { id: string; label: string; models: Array<{ id: string; label: string }> }
+type ModelPick = { provider: string; model: string }
+type TaskKey = 'search_catalog' | 'query_policy_rag' | 'verify_voucher' | 'manage_booking' | 'query_transformer'
+
+const tasks: Array<{ id: TaskKey; label: string }> = [
+  { id: 'search_catalog', label: 'Tìm sản phẩm' },
+  { id: 'query_policy_rag', label: 'Hỏi chính sách' },
+  { id: 'verify_voucher', label: 'Kiểm tra voucher' },
+  { id: 'manage_booking', label: 'Tạo đơn / giữ hàng' },
+  { id: 'query_transformer', label: 'Query transformer' },
 ]
 
-type PlaygroundMsg = { role: 'user' | 'assistant'; content: string }
+const fallbackProviders: ProviderOption[] = [
+  { id: 'gemini', label: 'Gemini', models: [{ id: 'gemini-1.5-flash', label: 'gemini-1.5-flash' }, { id: 'gemini-2.5-flash', label: 'gemini-2.5-flash' }] },
+  { id: 'openai', label: 'ChatGPT', models: [{ id: 'gpt-4o-mini', label: 'gpt-4o-mini' }, { id: 'gpt-4o', label: 'gpt-4o' }] },
+  { id: 'phi4', label: 'Phi 4', models: [{ id: 'Phi-4', label: 'Phi-4' }, { id: 'Phi-4-Reasoning', label: 'Phi-4-Reasoning' }] },
+  { id: 'ollama', label: 'Ollama', models: [{ id: 'qwen2.5', label: 'qwen2.5' }, { id: 'llama3.2', label: 'llama3.2' }] },
+]
 
-const defaultPrompt = `You are HTech Store's AI Sales Concierge — a premium, knowledgeable tech advisor for a high-end electronics retailer in Vietnam.
-
-Your responsibilities:
-1. Help customers choose the right iPhone, MacBook, or PC Gaming setup
-2. Provide accurate spec comparisons and price information
-3. Guide customers through warranty and trade-in programs
-4. Recommend PC builds within customer budgets
-5. Maintain a friendly, expert, and professional tone at all times
-
-Store info:
-- All products come with official 24-month warranty
-- Free nationwide shipping on orders over 5,000,000₫
-- Trade-in program available for all Apple devices
-- AI-powered support available 24/7
-
-Always respond in the same language as the customer (Vietnamese or English).`
+const defaultOrder: ModelPick[] = [
+  { provider: 'gemini', model: 'gemini-1.5-flash' },
+  { provider: 'openai', model: 'gpt-4o-mini' },
+  { provider: 'phi4', model: 'Phi-4' },
+]
 
 export default function AIAgentPage() {
-  const [selectedModel, setSelectedModel] = useState(models[0].id)
-  const [systemPrompt, setSystemPrompt] = useState(defaultPrompt)
-  const [temperature, setTemperature] = useState(0.7)
-  const [maxTokens, setMaxTokens] = useState(512)
-  const [playgroundInput, setPlaygroundInput] = useState('')
-  const [playgroundMessages, setPlaygroundMessages] = useState<PlaygroundMsg[]>([])
-  const [isThinking, setIsThinking] = useState(false)
+  const [providers, setProviders] = useState<ProviderOption[]>(fallbackProviders)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [settings, setSettings] = useState({
+    chat_provider: 'gemini',
+    chat_model: 'gemini-1.5-flash',
+    embedding_provider: 'gemini',
+    embedding_model: 'gemini-embedding-001',
+    system_prompt: '',
+    chat_model_order: defaultOrder,
+    task_model_config: {} as Record<string, ModelPick>,
+    reasoning_model_count: 1,
+    query_transformer_provider: 'gemini',
+    query_transformer_model: 'gemini-1.5-flash',
+  })
+  const [testPrompt, setTestPrompt] = useState('Tư vấn laptop dưới 20 triệu cho sinh viên thiết kế.')
+  const [testAnswer, setTestAnswer] = useState('')
+  const [queryQuestion, setQueryQuestion] = useState('Laptop dưới 20 triệu, RAM 16GB, bảo hành tốt?')
+  const [queryResult, setQueryResult] = useState<any>(null)
+  const [busyAction, setBusyAction] = useState<string | null>(null)
 
-  const sendPlayground = () => {
-    if (!playgroundInput.trim()) return
-    const userMsg: PlaygroundMsg = { role: 'user', content: playgroundInput }
-    setPlaygroundMessages((prev) => [...prev, userMsg])
-    setPlaygroundInput('')
-    setIsThinking(true)
+  useEffect(() => {
+    Promise.all([
+      api.get<any>('/admin/model-catalog').catch(() => ({ data: { chat_providers: fallbackProviders, embedding_providers: fallbackProviders } })),
+      api.get<any>('/admin/settings'),
+    ])
+      .then(([catalog, current]) => {
+        const chatProviders = catalog.data.chat_providers?.length ? catalog.data.chat_providers : fallbackProviders
+        setProviders(chatProviders)
+        const data = current.data
+        setSettings((prev) => ({
+          ...prev,
+          ...data,
+          chat_model_order: data.chat_model_order?.length ? data.chat_model_order : defaultOrder,
+          task_model_config: data.task_model_config || {},
+          reasoning_model_count: data.reasoning_model_count || 1,
+          query_transformer_provider: data.query_transformer_provider || data.chat_provider,
+          query_transformer_model: data.query_transformer_model || data.chat_model,
+        }))
+      })
+      .finally(() => setLoading(false))
+  }, [])
 
-    setTimeout(() => {
-      setPlaygroundMessages((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          content: `[${models.find((m) => m.id === selectedModel)?.label}] Based on your query, I can help you with that. As HTech Store's AI concierge, I have access to our full product catalog, pricing, and support information. Would you like me to provide specific recommendations or compare products for you?`,
-        },
-      ])
-      setIsThinking(false)
-    }, 1500)
+  const providerModels = useMemo(() => {
+    return Object.fromEntries(providers.map((provider) => [provider.id, provider.models]))
+  }, [providers])
+
+  const updatePick = (pick: ModelPick, provider: string): ModelPick => {
+    const model = providerModels[provider]?.[0]?.id || pick.model
+    return { provider, model }
   }
 
-  const handleSave = () => {
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+  const moveOrder = (index: number, direction: -1 | 1) => {
+    const next = [...settings.chat_model_order]
+    const target = index + direction
+    if (target < 0 || target >= next.length) return
+    ;[next[index], next[target]] = [next[target], next[index]]
+    setSettings({ ...settings, chat_model_order: next })
   }
+
+  const saveSettings = async () => {
+    setSaving(true)
+    try {
+      await api.put('/admin/settings', settings)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 1600)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const runTest = async () => {
+    setBusyAction('test')
+    try {
+      const { data } = await api.post<any>('/admin/test-model', {
+        prompt: testPrompt,
+        provider: settings.chat_provider,
+        model: settings.chat_model,
+      })
+      setTestAnswer(data.answer)
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
+  const runQueryTransformer = async () => {
+    setBusyAction('query')
+    try {
+      const { data } = await api.post<any>('/admin/query-transformer', {
+        question: queryQuestion,
+        provider: settings.query_transformer_provider,
+        model: settings.query_transformer_model,
+      })
+      setQueryResult(data)
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
+  const renderPick = (pick: ModelPick, onChange: (pick: ModelPick) => void) => (
+    <div className="grid gap-2 sm:grid-cols-2">
+      <select value={pick.provider} onChange={(event) => onChange(updatePick(pick, event.target.value))} className="h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-accent">
+        {providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.label}</option>)}
+      </select>
+      <select value={pick.model} onChange={(event) => onChange({ ...pick, model: event.target.value })} className="h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-accent">
+        {(providerModels[pick.provider] || []).map((model) => <option key={model.id} value={model.id}>{model.label}</option>)}
+      </select>
+    </div>
+  )
 
   return (
-    <div className="flex flex-col h-full">
-      <AdminHeader title="AI Agent Configuration" subtitle="Configure system prompts, select models, and test responses" />
+    <div className="flex h-full flex-col">
+      <AdminHeader title="Cấu hình AI Agent" subtitle="Chọn model chính, thứ tự fallback, model theo tác vụ và query transformer" />
       <div className="flex-1 overflow-y-auto p-6">
-        <div className="grid lg:grid-cols-2 gap-6 h-full">
-          {/* Left — Config panel */}
-          <div className="flex flex-col gap-5">
-            {/* Model selection */}
-            <div className="bg-card border border-border rounded-2xl p-5">
-              <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
-                <Bot className="w-4 h-4 text-accent" />
-                LLM Model
-              </h3>
-              <div className="grid grid-cols-2 gap-2">
-                {models.map((model) => (
-                  <button
-                    key={model.id}
-                    onClick={() => setSelectedModel(model.id)}
-                    className={cn(
-                      'p-3 rounded-xl border text-left transition-all',
-                      selectedModel === model.id
-                        ? 'border-accent bg-blue-light'
-                        : 'border-border hover:border-foreground/30 bg-background',
-                    )}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="text-xs font-bold text-foreground">{model.label}</p>
-                      <span className="px-1.5 py-0.5 rounded-md bg-accent/10 text-accent text-[10px] font-bold">
-                        {model.badge}
-                      </span>
+        {loading ? (
+          <div className="rounded-xl border border-border bg-card p-8 text-sm text-muted-foreground">Đang tải cấu hình AI...</div>
+        ) : (
+          <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
+            <div className="space-y-6">
+              <section className="rounded-xl border border-border bg-card p-5">
+                <SectionTitle icon={Bot} title="Model suy luận chính" />
+                <div className="mt-4">{renderPick({ provider: settings.chat_provider, model: settings.chat_model }, (pick) => setSettings({ ...settings, chat_provider: pick.provider, chat_model: pick.model }))}</div>
+              </section>
+
+              <section className="rounded-xl border border-border bg-card p-5">
+                <SectionTitle icon={RefreshCw} title="Thứ tự model fallback" />
+                <div className="mt-4 space-y-3">
+                  {settings.chat_model_order.map((pick, index) => (
+                    <div key={`${pick.provider}-${pick.model}-${index}`} className="grid gap-3 rounded-lg border border-border p-3 lg:grid-cols-[1fr_auto]">
+                      {renderPick(pick, (nextPick) => {
+                        const next = [...settings.chat_model_order]
+                        next[index] = nextPick
+                        setSettings({ ...settings, chat_model_order: next })
+                      })}
+                      <div className="flex gap-2">
+                        <button onClick={() => moveOrder(index, -1)} className="h-10 w-10 rounded-lg border border-border hover:bg-muted" aria-label="Đưa lên"><ArrowUp className="mx-auto h-4 w-4" /></button>
+                        <button onClick={() => moveOrder(index, 1)} className="h-10 w-10 rounded-lg border border-border hover:bg-muted" aria-label="Đưa xuống"><ArrowDown className="mx-auto h-4 w-4" /></button>
+                      </div>
                     </div>
-                    <p className="text-xs text-muted-foreground">{model.provider}</p>
-                  </button>
-                ))}
-              </div>
+                  ))}
+                </div>
+                <label className="mt-4 block text-sm font-medium text-foreground">
+                  Số model được phép suy luận chính
+                  <input type="number" min={1} max={settings.chat_model_order.length} value={settings.reasoning_model_count} onChange={(event) => setSettings({ ...settings, reasoning_model_count: Number(event.target.value) || 1 })} className="mt-1 h-10 w-28 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-accent" />
+                </label>
+              </section>
+
+              <section className="rounded-xl border border-border bg-card p-5">
+                <SectionTitle icon={Sparkles} title="Model theo tác vụ" />
+                <div className="mt-4 grid gap-4">
+                  {tasks.map((task) => {
+                    const pick = settings.task_model_config[task.id] || { provider: settings.chat_provider, model: settings.chat_model }
+                    return (
+                      <div key={task.id} className="grid gap-2 rounded-lg border border-border p-3 lg:grid-cols-[180px_1fr] lg:items-center">
+                        <p className="text-sm font-semibold text-foreground">{task.label}</p>
+                        {renderPick(pick, (nextPick) => setSettings({ ...settings, task_model_config: { ...settings.task_model_config, [task.id]: nextPick } }))}
+                      </div>
+                    )
+                  })}
+                </div>
+              </section>
+
+              <section className="rounded-xl border border-border bg-card p-5">
+                <SectionTitle icon={Sparkles} title="System prompt" />
+                <textarea value={settings.system_prompt || ''} onChange={(event) => setSettings({ ...settings, system_prompt: event.target.value })} rows={10} className="mt-4 w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-sm outline-none focus:border-accent" />
+              </section>
+
+              <button onClick={saveSettings} disabled={saving} className={cn('inline-flex h-10 items-center gap-2 rounded-lg px-4 text-sm font-semibold text-white', saved ? 'bg-green-600' : 'bg-accent hover:bg-accent/90', saving && 'opacity-60')}>
+                <Save className="h-4 w-4" />
+                {saved ? 'Đã lưu' : saving ? 'Đang lưu...' : 'Lưu cấu hình'}
+              </button>
             </div>
 
-            {/* Parameters */}
-            <div className="bg-card border border-border rounded-2xl p-5">
-              <h3 className="text-sm font-bold text-foreground mb-4">Parameters</h3>
-              <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between mb-2">
-                    <label className="text-xs font-medium text-muted-foreground">Temperature</label>
-                    <span className="text-xs font-bold text-foreground">{temperature}</span>
-                  </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.1}
-                    value={temperature}
-                    onChange={(e) => setTemperature(Number(e.target.value))}
-                    className="w-full accent-accent"
-                  />
-                  <div className="flex justify-between mt-1">
-                    <span className="text-[10px] text-muted-foreground">Precise</span>
-                    <span className="text-[10px] text-muted-foreground">Creative</span>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between mb-2">
-                    <label className="text-xs font-medium text-muted-foreground">Max Tokens</label>
-                    <span className="text-xs font-bold text-foreground">{maxTokens}</span>
-                  </div>
-                  <input
-                    type="range"
-                    min={128}
-                    max={2048}
-                    step={128}
-                    value={maxTokens}
-                    onChange={(e) => setMaxTokens(Number(e.target.value))}
-                    className="w-full accent-accent"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* System prompt */}
-            <div className="bg-card border border-border rounded-2xl p-5 flex-1">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-accent" />
-                  System Prompt
-                </h3>
-                <button
-                  onClick={handleSave}
-                  className={cn(
-                    'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all',
-                    saved ? 'bg-green-500 text-white' : 'bg-accent text-accent-foreground hover:bg-blue-dark',
-                  )}
-                >
-                  <Save className="w-3.5 h-3.5" />
-                  {saved ? 'Saved!' : 'Save'}
+            <aside className="space-y-6">
+              <section className="rounded-xl border border-border bg-card p-5">
+                <SectionTitle icon={Send} title="Test model" />
+                <textarea value={testPrompt} onChange={(event) => setTestPrompt(event.target.value)} rows={4} className="mt-4 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent" />
+                <button onClick={runTest} disabled={busyAction === 'test'} className="mt-3 h-10 w-full rounded-lg bg-foreground text-sm font-semibold text-background hover:bg-accent disabled:opacity-60">
+                  {busyAction === 'test' ? 'Đang test...' : 'Gửi thử'}
                 </button>
-              </div>
-              <textarea
-                value={systemPrompt}
-                onChange={(e) => setSystemPrompt(e.target.value)}
-                rows={14}
-                className="w-full px-4 py-3 rounded-xl bg-muted border border-border text-sm font-mono text-foreground focus:outline-none focus:border-accent transition-colors resize-none leading-relaxed"
-              />
-            </div>
-          </div>
+                {testAnswer && <p className="mt-4 rounded-lg bg-muted p-3 text-sm leading-relaxed text-foreground">{testAnswer}</p>}
+              </section>
 
-          {/* Right — Playground */}
-          <div className="bg-card border border-border rounded-2xl flex flex-col overflow-hidden min-h-[500px]">
-            <div className="px-5 py-4 border-b border-border flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-green-500" />
-                <h3 className="text-sm font-bold text-foreground">Response Playground</h3>
-              </div>
-              <span className="text-xs text-muted-foreground px-2.5 py-1 rounded-lg bg-muted border border-border">
-                {models.find((m) => m.id === selectedModel)?.label}
-              </span>
-            </div>
-
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {playgroundMessages.length === 0 && (
-                <div className="h-full flex flex-col items-center justify-center text-center gap-3 opacity-50 py-16">
-                  <Bot className="w-10 h-10 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">
-                    Send a test message to preview the AI response with the current configuration.
-                  </p>
-                </div>
-              )}
-              {playgroundMessages.map((msg, i) => (
-                <div key={i} className={cn('flex gap-2', msg.role === 'user' ? 'flex-row-reverse' : 'flex-row')}>
-                  <div
-                    className={cn(
-                      'w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold mt-0.5',
-                      msg.role === 'assistant' ? 'bg-accent text-accent-foreground' : 'bg-muted border border-border text-muted-foreground',
-                    )}
-                  >
-                    {msg.role === 'assistant' ? 'AI' : 'U'}
-                  </div>
-                  <div
-                    className={cn(
-                      'max-w-[85%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed',
-                      msg.role === 'assistant'
-                        ? 'bg-muted text-foreground rounded-tl-sm border border-border'
-                        : 'bg-accent text-accent-foreground rounded-tr-sm',
-                    )}
-                  >
-                    {msg.content}
-                  </div>
-                </div>
-              ))}
-              {isThinking && (
-                <div className="flex gap-2">
-                  <div className="w-6 h-6 rounded-full bg-accent flex items-center justify-center text-[10px] font-bold text-accent-foreground">AI</div>
-                  <div className="bg-muted border border-border rounded-2xl rounded-tl-sm px-4 py-3 flex gap-1">
-                    {[0,1,2].map((i) => (
-                      <span key={i} className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Input */}
-            <div className="p-4 border-t border-border shrink-0">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={playgroundInput}
-                  onChange={(e) => setPlaygroundInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && sendPlayground()}
-                  placeholder="Test a message..."
-                  className="flex-1 px-4 py-2.5 rounded-xl bg-muted border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-accent transition-colors"
-                />
-                <button
-                  onClick={sendPlayground}
-                  disabled={!playgroundInput.trim() || isThinking}
-                  className="w-10 h-10 rounded-xl bg-accent text-accent-foreground flex items-center justify-center hover:bg-blue-dark transition-colors disabled:opacity-40"
-                >
-                  <Send className="w-4 h-4" />
+              <section className="rounded-xl border border-border bg-card p-5">
+                <SectionTitle icon={Sparkles} title="Query transformer" />
+                <div className="mt-4">{renderPick({ provider: settings.query_transformer_provider || settings.chat_provider, model: settings.query_transformer_model || settings.chat_model }, (pick) => setSettings({ ...settings, query_transformer_provider: pick.provider, query_transformer_model: pick.model }))}</div>
+                <textarea value={queryQuestion} onChange={(event) => setQueryQuestion(event.target.value)} rows={4} className="mt-3 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent" />
+                <button onClick={runQueryTransformer} disabled={busyAction === 'query'} className="mt-3 h-10 w-full rounded-lg bg-accent text-sm font-semibold text-accent-foreground hover:bg-accent/90 disabled:opacity-60">
+                  {busyAction === 'query' ? 'Đang phân tích...' : 'Xem context'}
                 </button>
-              </div>
-            </div>
+                {queryResult && (
+                  <div className="mt-4 space-y-3 text-sm">
+                    <div className="rounded-lg bg-muted p-3">
+                      <p className="font-semibold text-foreground">Query đã tối ưu</p>
+                      <p className="mt-1 text-muted-foreground">{queryResult.transformed_query}</p>
+                    </div>
+                    <ContextList title="Sản phẩm" items={queryResult.context?.products || []} nameKey="name" />
+                    <ContextList title="Chính sách" items={queryResult.context?.policies || []} nameKey="title" />
+                  </div>
+                )}
+              </section>
+            </aside>
           </div>
-        </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function SectionTitle({ icon: Icon, title }: { icon: typeof Bot; title: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <Icon className="h-4 w-4 text-accent" />
+      <h2 className="font-bold text-foreground">{title}</h2>
+    </div>
+  )
+}
+
+function ContextList({ title, items, nameKey }: { title: string; items: any[]; nameKey: string }) {
+  return (
+    <div className="rounded-lg border border-border p-3">
+      <p className="font-semibold text-foreground">{title}</p>
+      <div className="mt-2 space-y-2">
+        {items.length === 0 ? (
+          <p className="text-muted-foreground">Chưa có context phù hợp.</p>
+        ) : items.slice(0, 4).map((item, index) => {
+          const raw = item[nameKey]
+          const label = typeof raw === 'object' ? raw?.vi || raw?.en : raw
+          return <p key={index} className="line-clamp-2 text-muted-foreground">{label || item.slug || item.content}</p>
+        })}
       </div>
     </div>
   )

@@ -32,7 +32,7 @@ export type StoreProduct = {
   originalPrice?: number
   originalPriceFormatted?: string
   image: string
-  badge?: 'Mới' | 'Hot' | 'Sale'
+  badge?: 'Mới' | 'New' | 'Hot' | 'Sale'
   rating: number
   reviews: number
   stock: number
@@ -48,17 +48,17 @@ export function formatVnd(price: number) {
   return `${new Intl.NumberFormat('vi-VN').format(price)} VND`
 }
 
-export function localized(value: ProductDTO['name'] | ProductDTO['description'] | undefined, fallback = '') {
+export function localized(value: ProductDTO['name'] | ProductDTO['description'] | undefined, fallback = '', locale: 'vi' | 'en' = 'vi') {
   if (!value) return fallback
   if (typeof value === 'string') return value
-  return value.vi || value.en || fallback
+  return value[locale] || value.vi || value.en || fallback
 }
 
 function normalizeImage(image: string) {
   if (!image) return '/images/placeholder.jpg'
   if (image.startsWith('http') || image.startsWith('/images')) return image
   if (image.startsWith('/static')) {
-    const base = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:8000'
+    const base = process.env.NEXT_PUBLIC_BACKEND_URL ?? `http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8000`
     return `${base.replace(/\/$/, '')}${image}`
   }
   return image.startsWith('/') ? image : `/${image}`
@@ -81,20 +81,20 @@ function specsFromDetails(details?: Record<string, unknown>, highlightSpecs?: st
   return specs
 }
 
-export function toStoreProduct(product: ProductDTO): StoreProduct {
+export function toStoreProduct(product: ProductDTO, locale: 'vi' | 'en' = 'vi'): StoreProduct {
   const salePrice = product.basePrice
   const originalPrice = product.discountPercent > 0 ? Math.round(salePrice / (1 - product.discountPercent / 100)) : undefined
   return {
     id: product.id,
     slug: product.slug,
-    name: localized(product.name, product.slug),
-    subtitle: product.tagline?.vi || product.tagline?.en || product.brand || product.category,
+    name: localized(product.name, product.slug, locale),
+    subtitle: product.tagline?.[locale] || product.tagline?.vi || product.tagline?.en || product.brand || product.category,
     price: salePrice,
     priceFormatted: formatVnd(salePrice),
     originalPrice,
     originalPriceFormatted: originalPrice ? formatVnd(originalPrice) : undefined,
     image: normalizeImage(product.image),
-    badge: product.discountPercent > 0 ? 'Sale' : product.isNew ? 'Mới' : product.trending ? 'Hot' : undefined,
+    badge: product.discountPercent > 0 ? 'Sale' : product.isNew ? (locale === 'vi' ? 'Mới' : 'New') : product.trending ? 'Hot' : undefined,
     rating: product.rating || 5,
     reviews: product.reviewCount || 0,
     stock: product.stock || 0,
@@ -102,14 +102,17 @@ export function toStoreProduct(product: ProductDTO): StoreProduct {
     category: product.category,
     brand: product.brand,
     specs: specsFromDetails(product.details, product.highlightSpecs),
-    description: localized(product.description, ''),
+    description: localized(product.description, '', locale),
     raw: product,
   }
 }
 
-export async function fetchProducts(params?: { category?: string; trending?: boolean }) {
-  const { data } = await api.get<ProductDTO[]>('/products', { params })
-  return data.map(toStoreProduct)
+export async function fetchProducts(params?: { category?: string; trending?: boolean; locale?: 'vi' | 'en' }) {
+  const { locale, ...apiParams } = params || {}
+  const storedLocale = typeof window !== 'undefined' ? localStorage.getItem('htech-locale') : null
+  const effectiveLocale = locale || (storedLocale === 'en' ? 'en' : 'vi')
+  const { data } = await api.get<ProductDTO[]>('/products', { params: apiParams })
+  return data.map((product) => toStoreProduct(product, effectiveLocale))
 }
 
 export async function fetchAdminProducts() {

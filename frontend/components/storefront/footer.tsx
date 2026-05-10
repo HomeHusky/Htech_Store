@@ -3,17 +3,19 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { Mail, ArrowRight, Facebook, Youtube, Instagram } from 'lucide-react'
-
-const footerLinks = {
-  Products: ['iPhone', 'MacBook', 'iPad', 'PC Gaming', 'Accessories', 'Deals'],
-  Support: ['Track Order', 'Returns & Refunds', 'Warranty', 'Repair Service', 'Contact Us'],
-  Company: ['About HTech', 'Careers', 'Press', 'Partners', 'Blog'],
-  Legal: ['Privacy Policy', 'Terms of Service', 'Cookie Policy'],
-}
+import { useI18n } from '@/lib/i18n'
 
 export function Footer() {
+  const { t } = useI18n()
   const [email, setEmail] = useState('')
   const [subscribed, setSubscribed] = useState(false)
+
+  const footerLinks = {
+    [t('footer.products')]: [t('nav.iphone'), t('nav.macbook'), 'iPad', t('nav.gaming'), t('nav.accessories'), t('nav.deals')],
+    [t('footer.support')]: [t('footer.track'), t('footer.refunds'), t('trust.warranty'), t('admin.repairs'), t('footer.contact_us')],
+    [t('footer.company')]: [t('footer.about'), t('footer.careers'), t('footer.press'), t('footer.partners'), t('footer.blog')],
+    [t('footer.legal')]: [t('footer.privacy'), t('footer.terms'), 'Cookie Policy'],
+  }
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault()
@@ -37,8 +39,7 @@ export function Footer() {
                 <span className="font-bold text-lg text-background">HTech Store</span>
               </div>
               <p className="text-sm text-background/50 leading-relaxed max-w-xs">
-                Vietnam&apos;s premier destination for premium tech. iPhones, MacBooks, and PC Gaming
-                gear — all with official warranty and AI-powered support.
+                {t('footer.desc')}
               </p>
             </div>
 
@@ -46,11 +47,11 @@ export function Footer() {
             <div>
               <p className="text-sm font-semibold text-background mb-3 flex items-center gap-2">
                 <Mail className="w-4 h-4 text-accent" />
-                Stay in the loop
+                {t('footer.stay_loop')}
               </p>
               {subscribed ? (
                 <p className="text-sm text-accent font-medium">
-                  Thanks for subscribing!
+                  {t('footer.thanks')}
                 </p>
               ) : (
                 <form onSubmit={handleSubscribe} className="flex gap-2">
@@ -66,13 +67,13 @@ export function Footer() {
                     type="submit"
                     className="px-4 py-2.5 bg-accent text-accent-foreground rounded-xl hover:bg-blue-dark transition-colors flex items-center gap-1.5 text-sm font-semibold shrink-0"
                   >
-                    Join
+                    {t('footer.join')}
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </form>
               )}
               <p className="text-xs text-background/30 mt-2">
-                Get exclusive deals, new arrivals, and tech news. Unsubscribe anytime.
+                {t('footer.exclusive')}
               </p>
             </div>
 
@@ -116,10 +117,10 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="mt-12 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-xs text-background/30">
-            &copy; {new Date().getFullYear()} HTech Store. All rights reserved.
+            &copy; {new Date().getFullYear()} HTech Store. {t('footer.rights')}.
           </p>
           <div className="flex items-center gap-4">
-            {['Privacy', 'Terms', 'Sitemap'].map((item) => (
+            {[t('footer.privacy'), t('footer.terms'), t('footer.sitemap')].map((item) => (
               <Link
                 key={item}
                 href="#"

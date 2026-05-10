@@ -14,6 +14,7 @@ import {
   BarChart,
   Bar,
 } from 'recharts'
+import Link from 'next/link'
 import {
   TrendingUp,
   TrendingDown,
@@ -26,50 +27,60 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AdminHeader } from '@/components/admin/header'
-
-const revenueData = [
-  { month: 'Jan', revenue: 820, orders: 48 },
-  { month: 'Feb', revenue: 932, orders: 55 },
-  { month: 'Mar', revenue: 901, orders: 62 },
-  { month: 'Apr', revenue: 1134, orders: 80 },
-  { month: 'May', revenue: 1290, orders: 91 },
-  { month: 'Jun', revenue: 1330, orders: 98 },
-  { month: 'Jul', revenue: 1450, orders: 105 },
-]
-
-const categoryData = [
-  { name: 'iPhone', value: 42, color: '#0071e3' },
-  { name: 'MacBook', value: 27, color: '#34c759' },
-  { name: 'PC Gaming', value: 19, color: '#ff9f0a' },
-  { name: 'Accessories', value: 12, color: '#64d2ff' },
-]
-
-const liveOrders = [
-  { id: '#ORD-8821', customer: 'Nguyen Minh Tri', product: 'iPhone 15 Pro 256GB', amount: '29,990,000₫', status: 'Paid', time: '2m ago' },
-  { id: '#ORD-8820', customer: 'Tran Thi Lan', product: 'MacBook Air M3 15"', amount: '38,990,000₫', status: 'Processing', time: '7m ago' },
-  { id: '#ORD-8819', customer: 'Le Van Khanh', product: 'ROG Gaming Laptop', amount: '52,990,000₫', status: 'Shipped', time: '15m ago' },
-  { id: '#ORD-8818', customer: 'Pham Duc Hieu', product: 'Gaming Monitor 27"', amount: '12,990,000₫', status: 'Paid', time: '22m ago' },
-  { id: '#ORD-8817', customer: 'Vo Thi Thu', product: 'iPhone 14 128GB', amount: '21,990,000₫', status: 'Delivered', time: '1h ago' },
-]
-
-const statusColors: Record<string, string> = {
-  Paid: 'text-green-600 bg-green-50',
-  Processing: 'text-amber-600 bg-amber-50',
-  Shipped: 'text-blue-600 bg-blue-50',
-  Delivered: 'text-slate-600 bg-slate-100',
-}
-
-const kpis = [
-  { label: 'Total Revenue', value: '1.45B₫', change: '+18.2%', up: true, icon: DollarSign, color: 'text-green-600' },
-  { label: 'Total Orders', value: '3,847', change: '+12.5%', up: true, icon: ShoppingCart, color: 'text-blue-600' },
-  { label: 'New Customers', value: '1,204', change: '+9.1%', up: true, icon: Users, color: 'text-purple-600' },
-  { label: 'Avg. Order Value', value: '37.6M₫', change: '-2.3%', up: false, icon: Package, color: 'text-amber-600' },
-]
+import { useI18n } from '@/lib/i18n'
 
 export default function AdminAnalyticsPage() {
+  const { t } = useI18n()
+
+  const revenueData = [
+    { month: 'T1', revenue: 820, orders: 48 },
+    { month: 'T2', revenue: 932, orders: 55 },
+    { month: 'T3', revenue: 901, orders: 62 },
+    { month: 'T4', revenue: 1134, orders: 80 },
+    { month: 'T5', revenue: 1290, orders: 91 },
+    { month: 'T6', revenue: 1330, orders: 98 },
+    { month: 'T7', revenue: 1450, orders: 105 },
+  ]
+
+  const categoryData = [
+    { name: t('nav.iphone'), value: 42, color: '#0071e3' },
+    { name: t('nav.macbook'), value: 27, color: '#34c759' },
+    { name: t('nav.gaming'), value: 19, color: '#ff9f0a' },
+    { name: t('nav.accessories'), value: 12, color: '#64d2ff' },
+  ]
+
+  const liveOrders = [
+    { id: '#ORD-8821', customer: 'Nguyen Minh Tri', product: 'iPhone 15 Pro 256GB', amount: '29,990,000₫', status: 'Paid', time: `2 ${t('admin.dashboard.minute_ago')}` },
+    { id: '#ORD-8820', customer: 'Tran Thi Lan', product: 'MacBook Air M3 15"', amount: '38,990,000₫', status: 'Processing', time: `7 ${t('admin.dashboard.minute_ago')}` },
+    { id: '#ORD-8819', customer: 'Le Van Khanh', product: 'ROG Gaming Laptop', amount: '52,990,000₫', status: 'Shipped', time: `15 ${t('admin.dashboard.minute_ago')}` },
+    { id: '#ORD-8818', customer: 'Pham Duc Hieu', product: 'Gaming Monitor 27"', amount: '12,990,000₫', status: 'Paid', time: `22 ${t('admin.dashboard.minute_ago')}` },
+    { id: '#ORD-8817', customer: 'Vo Thi Thu', product: 'iPhone 14 128GB', amount: '21,990,000₫', status: 'Delivered', time: `1 ${t('admin.dashboard.hour_ago')}` },
+  ]
+
+  const statusLabels: Record<string, string> = {
+    Paid: t('admin.dashboard.status.paid'),
+    Processing: t('admin.dashboard.status.processing'),
+    Shipped: t('admin.dashboard.status.shipped'),
+    Delivered: t('admin.dashboard.status.delivered'),
+  }
+
+  const statusColors: Record<string, string> = {
+    Paid: 'text-green-600 bg-green-50',
+    Processing: 'text-amber-600 bg-amber-50',
+    Shipped: 'text-blue-600 bg-blue-50',
+    Delivered: 'text-slate-600 bg-slate-100',
+  }
+
+  const kpis = [
+    { label: t('admin.dashboard.revenue'), value: '1.45B₫', change: '+18.2%', up: true, icon: DollarSign, color: 'text-green-600' },
+    { label: t('admin.dashboard.orders'), value: '3,847', change: '+12.5%', up: true, icon: ShoppingCart, color: 'text-blue-600' },
+    { label: t('admin.dashboard.customers'), value: '1,204', change: '+9.1%', up: true, icon: Users, color: 'text-purple-600' },
+    { label: t('admin.dashboard.avg_order'), value: '37.6M₫', change: '-2.3%', up: false, icon: Package, color: 'text-amber-600' },
+  ]
+
   return (
     <div className="flex flex-col h-full">
-      <AdminHeader title="Analytics Overview" subtitle="Real-time sales and performance data" />
+      <AdminHeader title={t('admin.dashboard.title')} subtitle={t('admin.dashboard.subtitle')} />
 
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {/* KPIs */}
@@ -92,7 +103,7 @@ export default function AdminAnalyticsPage() {
                   <div className={cn('flex items-center gap-1 mt-1', kpi.up ? 'text-green-600' : 'text-red-500')}>
                     {kpi.up ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
                     <span className="text-xs font-semibold">{kpi.change}</span>
-                    <span className="text-xs text-muted-foreground">vs last month</span>
+                    <span className="text-xs text-muted-foreground">{t('admin.dashboard.vs_last')}</span>
                   </div>
                 </div>
               </div>
@@ -105,11 +116,11 @@ export default function AdminAnalyticsPage() {
           <div className="lg:col-span-2 bg-card border border-border rounded-2xl p-5">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="text-sm font-bold text-foreground">Revenue & Orders</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Last 7 months</p>
+                <h3 className="text-sm font-bold text-foreground">{t('admin.dashboard.revenue_orders')}</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">{t('admin.dashboard.last_7')}</p>
               </div>
               <button className="text-xs text-accent hover:text-blue-dark font-semibold flex items-center gap-1">
-                View report <ArrowUpRight className="w-3 h-3" />
+                {t('admin.dashboard.view_report')} <ArrowUpRight className="w-3 h-3" />
               </button>
             </div>
             <ResponsiveContainer width="100%" height={220}>
@@ -125,7 +136,7 @@ export default function AdminAnalyticsPage() {
                 <YAxis tick={{ fontSize: 11, fill: 'oklch(0.5 0 0)' }} axisLine={false} tickLine={false} />
                 <Tooltip
                   contentStyle={{ background: 'white', border: '1px solid oklch(0.91 0 0)', borderRadius: 12, fontSize: 12 }}
-                  formatter={(v: number) => [`${v}M₫`, 'Revenue']}
+                  formatter={(v: number) => [`${v}M₫`, t('admin.dashboard.revenue')]}
                 />
                 <Area type="monotone" dataKey="revenue" stroke="#0071e3" strokeWidth={2.5} fill="url(#revenueGrad)" dot={false} />
               </AreaChart>
@@ -135,8 +146,8 @@ export default function AdminAnalyticsPage() {
           {/* Category pie */}
           <div className="bg-card border border-border rounded-2xl p-5 flex flex-col">
             <div className="mb-6">
-              <h3 className="text-sm font-bold text-foreground">Sales by Category</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">This month</p>
+              <h3 className="text-sm font-bold text-foreground">{t('admin.dashboard.sales_cat')}</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">{t('admin.dashboard.this_month')}</p>
             </div>
             <div className="flex-1 flex items-center justify-center">
               <ResponsiveContainer width="100%" height={160}>
@@ -169,11 +180,11 @@ export default function AdminAnalyticsPage() {
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
             <div className="flex items-center gap-2">
               <Circle className="w-2.5 h-2.5 fill-green-500 text-green-500 animate-pulse" />
-              <h3 className="text-sm font-bold text-foreground">Live Activity Feed</h3>
+              <h3 className="text-sm font-bold text-foreground">{t('admin.dashboard.live_activity')}</h3>
             </div>
-            <a href="/admin/orders" className="text-xs text-accent font-semibold hover:text-blue-dark">
-              View all orders
-            </a>
+            <Link href="/admin/orders" className="text-xs text-accent font-semibold hover:text-blue-dark">
+              {t('admin.dashboard.view_all_orders')}
+            </Link>
           </div>
           <div className="divide-y divide-border">
             {liveOrders.map((order) => (
@@ -182,7 +193,7 @@ export default function AdminAnalyticsPage() {
                   <div className="flex items-center gap-2">
                     <p className="text-xs font-mono font-bold text-muted-foreground">{order.id}</p>
                     <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold', statusColors[order.status])}>
-                      {order.status}
+                      {statusLabels[order.status]}
                     </span>
                   </div>
                   <p className="text-sm font-semibold text-foreground truncate mt-0.5">{order.customer}</p>
@@ -200,8 +211,8 @@ export default function AdminAnalyticsPage() {
         {/* Conversion bar chart */}
         <div className="bg-card border border-border rounded-2xl p-5">
           <div className="mb-5">
-            <h3 className="text-sm font-bold text-foreground">Monthly Orders Volume</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Orders per month</p>
+            <h3 className="text-sm font-bold text-foreground">{t('admin.dashboard.monthly_volume')}</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">{t('admin.dashboard.orders_per_month')}</p>
           </div>
           <ResponsiveContainer width="100%" height={160}>
             <BarChart data={revenueData} barSize={28}>
