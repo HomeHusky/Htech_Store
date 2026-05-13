@@ -6,6 +6,7 @@ import { AdminHeader } from '@/components/admin/header'
 import { cn } from '@/lib/utils'
 import api from '@/lib/api'
 import { useI18n } from '@/lib/i18n'
+import { AdminCardGridSkeleton } from '@/components/loading-skeletons'
 
 type Category = {
   id: string
@@ -183,9 +184,7 @@ export default function CategoriesPage() {
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {loading
-            ? Array.from({ length: 6 }).map((_, index) => (
-                <div key={index} className="h-40 animate-pulse rounded-xl border border-border bg-card" />
-              ))
+            ? <AdminCardGridSkeleton count={6} className="md:col-span-2 xl:col-span-3" />
             : filteredCategories.map((category) => (
                 <article key={category.id} className="group rounded-xl border border-border bg-card p-5 transition hover:border-accent/40 hover:shadow-sm">
                   <div className="flex items-start justify-between gap-3">

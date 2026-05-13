@@ -33,10 +33,13 @@ export function Navbar() {
   const { totalItems } = useCart()
 
   const navLinks = [
-    { label: t('nav.iphone'), href: '/products?category=phone' },
-    { label: t('nav.macbook'), href: '/products?category=laptop' },
+    { label: t('nav.iphone'), href: '/products?segment=iphone' },
+    { label: t('nav.android'), href: '/products?segment=android' },
+    { label: t('nav.macbook'), href: '/products?segment=macbook' },
+    { label: t('nav.windows'), href: '/products?segment=windows' },
     { label: t('nav.gaming'), href: '/products?category=pc' },
     { label: t('nav.accessories'), href: '/products?category=accessory' },
+    { label: t('nav.used'), href: '/used' },
     { label: t('nav.deals'), href: '/products?badge=Sale' },
   ]
 
@@ -59,7 +62,7 @@ export function Navbar() {
     <>
       {/* Notification bar */}
       {notifVisible && (
-        <div className="w-full bg-foreground text-background text-xs font-medium py-2.5 text-center relative flex items-center justify-center gap-2">
+        <div className="relative flex w-full items-center justify-center gap-2 bg-[var(--notification-bar)] py-2.5 text-center text-xs font-medium text-white dark:text-foreground">
           <Zap className="w-3.5 h-3.5 fill-accent stroke-accent" />
           <span>
             {t('notif.tradein')}{' '}
@@ -97,12 +100,12 @@ export function Navbar() {
             </Link>
 
             {/* Desktop links */}
-            <ul className="hidden lg:flex items-center gap-1">
+            <ul className="hidden lg:flex items-center gap-0.5">
               {navLinks.map((link) => (
                 <li key={link.label}>
                   <Link
                     href={link.href}
-                    className="px-3.5 py-2 text-sm text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-all duration-200 flex items-center gap-1"
+                    className="flex items-center gap-1 rounded-lg px-2.5 py-2 text-xs font-medium text-muted-foreground transition-all duration-200 hover:bg-muted hover:text-foreground xl:text-sm"
                   >
                     {link.label}
                     {link.label === t('nav.iphone') && (

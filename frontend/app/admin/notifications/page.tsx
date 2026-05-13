@@ -22,6 +22,7 @@ import {
 import { AdminHeader } from '@/components/admin/header'
 import api from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { AdminFormSkeleton } from '@/components/loading-skeletons'
 
 type ChannelType = 'telegram' | 'facebook' | 'email' | 'sms'
 type LogStatus = 'sent' | 'failed' | 'pending'
@@ -80,6 +81,7 @@ export default function NotificationsPage() {
   const [testSending, setTestSending] = useState<string | null>(null)
   const [newChannel, setNewChannel] = useState({ name: '', type: 'telegram' as ChannelType, config: '' })
   const [settings, setSettings] = useState<IntegrationSettings | null>(null)
+  const [settingsLoading, setSettingsLoading] = useState(true)
   const [telegramBotId, setTelegramBotId] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -101,6 +103,7 @@ export default function NotificationsPage() {
         setTelegramBotId(token.includes(':') ? token.split(':')[0] : '')
       })
       .catch((err: any) => setError(err?.data?.detail || 'Không tải được cấu hình tích hợp.'))
+      .finally(() => setSettingsLoading(false))
   }, [])
 
   const updateSettings = (patch: Partial<IntegrationSettings>) => {
@@ -230,6 +233,11 @@ export default function NotificationsPage() {
                 </div>
               </div>
 
+              {settingsLoading ? (
+                <div className="mt-5">
+                  <AdminFormSkeleton />
+                </div>
+              ) : (
               <div className="mt-5 grid gap-4 lg:grid-cols-2">
                 <Field label="Google Client ID">
                   <input value={settings?.google_client_id || ''} onChange={(event) => updateSettings({ google_client_id: event.target.value })} className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-accent" />
@@ -247,6 +255,7 @@ export default function NotificationsPage() {
                   <input value={settings?.telegram_chat_id || ''} onChange={(event) => updateSettings({ telegram_chat_id: event.target.value })} placeholder="ID nhóm hoặc user nhận thông báo" className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-accent" />
                 </Field>
               </div>
+              )}
             </section>
 
             <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">

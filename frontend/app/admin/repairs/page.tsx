@@ -5,6 +5,7 @@ import { AlertCircle, Calendar, CheckCircle, Clock, Phone, Plus, Search, Smartph
 import { AdminHeader } from '@/components/admin/header'
 import api from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { AdminStatGridSkeleton, AdminTableSkeleton } from '@/components/loading-skeletons'
 
 type RepairStatus = 'pending' | 'diagnosing' | 'repairing' | 'completed' | 'cancelled'
 type RepairPriority = 'low' | 'normal' | 'high'
@@ -119,7 +120,12 @@ export default function RepairsPage() {
     <>
       <AdminHeader title="Sửa chữa" subtitle="Theo dõi yêu cầu sửa chữa, chẩn đoán và bàn giao thiết bị" />
       <div className="flex-1 space-y-6 overflow-y-auto p-6">
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {loading && (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <AdminStatGridSkeleton count={4} />
+          </div>
+        )}
+        <div className={cn('grid gap-4 sm:grid-cols-2 xl:grid-cols-4', loading && 'hidden')}>
           <StatCard label="Tổng yêu cầu" value={stats.total} icon={Wrench} />
           <StatCard label="Chờ xử lý" value={stats.pending} tone="amber" icon={Clock} />
           <StatCard label="Đang xử lý" value={stats.inProgress} tone="blue" icon={AlertCircle} />
@@ -153,7 +159,7 @@ export default function RepairsPage() {
               </thead>
               <tbody className="divide-y divide-border">
                 {loading ? (
-                  <tr><td colSpan={7} className="px-5 py-10 text-center text-sm text-muted-foreground">Đang tải yêu cầu sửa chữa...</td></tr>
+                  <AdminTableSkeleton columns={7} rows={6} />
                 ) : filteredRepairs.map((repair) => {
                   const StatusIcon = statusConfig[repair.status].icon
                   return (

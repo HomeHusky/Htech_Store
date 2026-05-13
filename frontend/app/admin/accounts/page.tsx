@@ -5,6 +5,7 @@ import { KeyRound, Plus, RefreshCw, Save, Shield, Trash2, UserCog } from 'lucide
 import { AdminHeader } from '@/components/admin/header'
 import api from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { AdminListSkeleton } from '@/components/loading-skeletons'
 
 type UserRole = 'USER' | 'STAFF' | 'ADMIN'
 type UserPermission = 'NONE' | 'READ_ONLY' | 'FULL'
@@ -134,7 +135,7 @@ export default function AdminAccountsPage() {
               </button>
 
               {loading ? (
-                <p className="rounded-lg bg-muted px-3 py-4 text-sm text-muted-foreground">Đang tải...</p>
+                <AdminListSkeleton count={4} />
               ) : users.length === 0 ? (
                 <p className="rounded-lg bg-muted px-3 py-4 text-sm text-muted-foreground">Chưa có tài khoản.</p>
               ) : (

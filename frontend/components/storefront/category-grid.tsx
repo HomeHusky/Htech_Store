@@ -10,48 +10,92 @@ import { useI18n } from '@/lib/i18n'
 const categories = [
   {
     id: 'iphone',
-    label: 'iPhone',
+    labelKey: 'cat.iphone',
+    descKey: 'cat.iphone.desc',
     image: '/images/iphone-15-pro.jpg',
-    href: '/products?category=phone',
-    accent: 'from-slate-50 to-blue-light',
+    href: '/products?segment=iphone',
+    accent: 'from-slate-50 via-blue-light to-white dark:from-[#1a202c] dark:via-[#152338] dark:to-[#111827]',
     span: 'lg:col-span-2 lg:row-span-2',
     textColor: 'text-foreground',
+    imageClass: 'object-contain p-7 sm:p-9',
     tag: true,
   },
   {
     id: 'macbook',
-    label: 'MacBook',
+    labelKey: 'cat.macbook',
+    descKey: 'cat.macbook.desc',
     image: '/images/macbook-pro.jpg',
-    href: '/products?category=laptop',
-    accent: 'from-slate-50 to-slate-100',
-    span: 'lg:col-span-1',
+    href: '/products?segment=macbook',
+    accent: 'from-zinc-50 to-slate-100 dark:from-[#171717] dark:to-[#20242c]',
+    span: 'lg:col-span-2',
     textColor: 'text-foreground',
+    imageClass: 'object-contain p-6',
     tag: true,
   },
   {
+    id: 'android',
+    labelKey: 'cat.android',
+    descKey: 'cat.android.desc',
+    image: '/images/iphone-hero.jpg',
+    href: '/products?segment=android',
+    accent: 'from-emerald-50 to-cyan-50 dark:from-[#10251c] dark:to-[#0f252a]',
+    span: 'lg:col-span-2',
+    textColor: 'text-foreground',
+    imageClass: 'object-contain p-7',
+    tag: true,
+  },
+  {
+    id: 'windows',
+    labelKey: 'cat.windows',
+    descKey: 'cat.windows.desc',
+    image: '/images/gaming-laptop.jpg',
+    href: '/products?segment=windows',
+    accent: 'from-sky-50 to-slate-100 dark:from-[#102033] dark:to-[#1d2430]',
+    span: 'lg:col-span-2',
+    textColor: 'text-foreground',
+    imageClass: 'object-contain p-6',
+    tag: false,
+  },
+  {
     id: 'gaming',
-    label: 'PC Gaming',
+    labelKey: 'cat.gaming',
+    descKey: 'cat.gaming.desc',
     image: '/images/gaming-pc.jpg',
     href: '/products?category=pc',
-    accent: 'from-slate-900 to-slate-800',
-    span: 'lg:col-span-1',
+    accent: 'from-zinc-900 to-slate-800 dark:from-[#141414] dark:to-[#242832]',
+    span: 'lg:col-span-2',
     textColor: 'text-white',
+    imageClass: 'object-contain p-6',
+    tag: true,
+  },
+  {
+    id: 'used',
+    labelKey: 'cat.used',
+    descKey: 'cat.used.desc',
+    image: '/images/macbook-air.jpg',
+    href: '/used',
+    accent: 'from-amber-50 to-stone-100 dark:from-[#292419] dark:to-[#1f211c]',
+    span: 'lg:col-span-1',
+    textColor: 'text-foreground',
+    imageClass: 'object-contain p-5',
     tag: true,
   },
   {
     id: 'accessories',
-    label: 'Phụ kiện',
+    labelKey: 'cat.accessories',
+    descKey: 'cat.accessories.desc',
     image: '/images/accessories.jpg',
     href: '/products?category=accessory',
-    accent: 'from-slate-50 to-slate-100',
-    span: 'lg:col-span-2',
+    accent: 'from-zinc-50 to-slate-100 dark:from-[#171717] dark:to-[#21242a]',
+    span: 'lg:col-span-1',
     textColor: 'text-foreground',
+    imageClass: 'object-contain p-5',
     tag: false,
   },
 ]
 
 export function CategoryGrid() {
-  const { locale, t } = useI18n()
+  const { t } = useI18n()
   const sectionRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
@@ -64,49 +108,46 @@ export function CategoryGrid() {
   }, [])
 
   return (
-    <section ref={sectionRef} id="categories" className="py-20 bg-surface-alt">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="reveal flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-10">
+    <section ref={sectionRef} id="categories" className="bg-surface-alt py-20">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="reveal mb-10 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
-            <p className="text-xs font-semibold text-accent uppercase tracking-widest mb-2">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-accent">
               {t('cat.title')}
             </p>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-foreground text-balance">
+            <h2 className="text-balance text-3xl font-black tracking-tight text-foreground sm:text-4xl">
               {t('cat.subtitle')}
             </h2>
           </div>
           <Link
             href="#products"
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent hover:text-blue-dark transition-colors"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent transition-colors hover:text-blue-dark"
           >
             {t('products.viewall')}
-            <ArrowRight className="w-4 h-4" />
+            <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
 
-        {/* Bento grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 lg:grid-rows-2 gap-4 auto-rows-[240px]">
+        <div className="grid grid-cols-1 gap-4 auto-rows-[220px] sm:grid-cols-2 sm:auto-rows-[240px] lg:grid-cols-6">
           {categories.map((cat, i) => (
             <Link
               key={cat.id}
               href={cat.href}
               className={cn(
-                'reveal group relative overflow-hidden rounded-2xl bg-gradient-to-br cursor-pointer',
+                'reveal group relative cursor-pointer overflow-hidden rounded-2xl bg-gradient-to-br',
                 cat.accent,
                 cat.span,
                 'transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-foreground/10',
               )}
               style={{ animationDelay: `${i * 0.08}s` }}
             >
-              {/* Tag badge */}
               {cat.tag && (
                 <span
                   className={cn(
-                    'absolute top-4 left-4 z-20 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider',
+                    'absolute left-4 top-4 z-20 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider',
                     cat.id === 'gaming'
                       ? 'bg-accent text-accent-foreground'
-                      : cat.id === 'macbook'
+                      : cat.id === 'macbook' || cat.id === 'windows'
                         ? 'bg-foreground text-background'
                         : 'bg-amber-400 text-amber-900',
                   )}
@@ -115,52 +156,39 @@ export function CategoryGrid() {
                 </span>
               )}
 
-              {/* Image */}
               <div className="absolute inset-0 overflow-hidden">
                 <Image
                   src={cat.image}
-                  alt={cat.label}
+                  alt={t(cat.labelKey as any)}
                   fill
-                  className="object-cover transition-transform duration-500 group-hover:scale-105"
+                  sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                  className={cn('transition-transform duration-500 group-hover:scale-105', cat.imageClass)}
                 />
-                {/* Overlay gradient */}
                 <div
                   className={cn(
                     'absolute inset-0',
                     cat.textColor === 'text-white'
                       ? 'bg-gradient-to-t from-black/70 via-black/20 to-transparent'
-                      : 'bg-gradient-to-t from-background/80 via-background/20 to-transparent',
+                      : 'bg-gradient-to-t from-background/85 via-background/20 to-transparent',
                   )}
                 />
               </div>
 
-              {/* Text */}
-              <div className="absolute bottom-0 left-0 right-0 p-5 z-10">
-                <p
-                  className={cn(
-                    'text-xs font-medium uppercase tracking-wider mb-0.5 opacity-70',
-                    cat.textColor,
-                  )}
-                >
-                  {t(`cat.${cat.id}.desc` as any)}
+              <div className="absolute inset-x-0 bottom-0 z-10 p-5">
+                <p className={cn('mb-0.5 text-xs font-medium uppercase tracking-wider opacity-70', cat.textColor)}>
+                  {t(cat.descKey as any)}
                 </p>
-                <div className="flex items-center justify-between">
-                  <h3
-                    className={cn(
-                      'text-xl font-black tracking-tight',
-                      cat.id === 'iphone' ? 'text-2xl' : '',
-                      cat.textColor,
-                    )}
-                  >
-                    {t(`cat.${cat.id}` as any) || cat.label}
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className={cn('text-xl font-black tracking-tight', cat.id === 'iphone' && 'text-2xl', cat.textColor)}>
+                    {t(cat.labelKey as any)}
                   </h3>
                   <span
                     className={cn(
-                      'w-8 h-8 rounded-full bg-background/10 backdrop-blur flex items-center justify-center transition-all duration-200 group-hover:bg-accent group-hover:text-accent-foreground',
+                      'flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-background/10 backdrop-blur transition-all duration-200 group-hover:bg-accent group-hover:text-accent-foreground',
                       cat.textColor,
                     )}
                   >
-                    <ArrowRight className="w-4 h-4" />
+                    <ArrowRight className="h-4 w-4" />
                   </span>
                 </div>
               </div>

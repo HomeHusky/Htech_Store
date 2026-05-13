@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import api from '@/lib/api'
 import { fetchAdminProducts, formatVnd, localized, type ProductDTO } from '@/lib/products-api'
 import { useI18n } from '@/lib/i18n'
+import { AdminTableSkeleton } from '@/components/loading-skeletons'
 
 type Category = {
   id: string
@@ -180,11 +181,7 @@ export default function ProductsPage() {
               </thead>
               <tbody className="divide-y divide-border">
                 {loading ? (
-                  <tr>
-                    <td colSpan={8} className="px-5 py-10 text-center text-sm text-muted-foreground">
-                      {t('admin.loading')}
-                    </td>
-                  </tr>
+                  <AdminTableSkeleton columns={8} rows={6} />
                 ) : filtered.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="px-5 py-10 text-center text-sm text-muted-foreground">

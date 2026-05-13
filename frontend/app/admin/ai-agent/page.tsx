@@ -5,6 +5,7 @@ import { ArrowDown, ArrowUp, Bot, RefreshCw, Save, Send, Sparkles } from 'lucide
 import { AdminHeader } from '@/components/admin/header'
 import api from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { AdminFormSkeleton } from '@/components/loading-skeletons'
 
 type ProviderOption = { id: string; label: string; models: Array<{ id: string; label: string }> }
 type ModelPick = { provider: string; model: string }
@@ -148,7 +149,19 @@ export default function AIAgentPage() {
       <AdminHeader title="Cấu hình AI Agent" subtitle="Chọn model chính, thứ tự fallback, model theo tác vụ và query transformer" />
       <div className="flex-1 overflow-y-auto p-6">
         {loading ? (
-          <div className="rounded-xl border border-border bg-card p-8 text-sm text-muted-foreground">Đang tải cấu hình AI...</div>
+          <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
+            <div className="space-y-6">
+              <section className="rounded-xl border border-border bg-card p-5">
+                <AdminFormSkeleton />
+              </section>
+              <section className="rounded-xl border border-border bg-card p-5">
+                <AdminFormSkeleton />
+              </section>
+            </div>
+            <aside className="rounded-xl border border-border bg-card p-5">
+              <AdminFormSkeleton />
+            </aside>
+          </div>
         ) : (
           <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
             <div className="space-y-6">

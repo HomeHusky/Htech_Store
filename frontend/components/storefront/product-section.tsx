@@ -8,17 +8,23 @@ import { cn } from '@/lib/utils'
 import { useCart, allProducts, type Product } from '@/lib/store'
 import { fetchProducts } from '@/lib/products-api'
 import { useI18n } from '@/lib/i18n'
+import { ProductGridSkeleton } from '@/components/loading-skeletons'
 
-const filters = ['all', 'phone', 'laptop', 'pc', 'tablet', 'accessory']
+const filters = ['all', 'iphone', 'android', 'macbook', 'windows', 'pc', 'tablet', 'accessory', 'used']
 
 function normalizeCategory(value?: string | null) {
   const key = (value || '').trim().toLowerCase()
   const aliases: Record<string, string> = {
     iphone: 'phone',
+    android: 'phone',
     smartphone: 'phone',
     mobile: 'phone',
     phone: 'phone',
     macbook: 'laptop',
+    windows: 'laptop',
+    window: 'laptop',
+    lapwindow: 'laptop',
+    windowslaptop: 'laptop',
     laptop: 'laptop',
     gaming: 'pc',
     pcgaming: 'pc',
@@ -29,6 +35,22 @@ function normalizeCategory(value?: string | null) {
     all: 'all',
   }
   return aliases[key] || key
+}
+
+function productMatchesFilter(product: Product, filter: string) {
+  if (filter === 'all') return true
+  const category = normalizeCategory(product.category)
+  const name = product.name.toLowerCase()
+  const brand = product.brand.toLowerCase()
+  const isApple = brand.includes('apple') || name.includes('iphone') || name.includes('macbook')
+
+  if (filter === 'iphone') return category === 'phone' && (brand.includes('apple') || name.includes('iphone'))
+  if (filter === 'android') return category === 'phone' && !isApple
+  if (filter === 'macbook') return category === 'laptop' && (brand.includes('apple') || name.includes('macbook'))
+  if (filter === 'windows') return category === 'laptop' && !isApple
+  if (filter === 'used') return Boolean(product.isTradeIn) || name.includes('used') || name.includes('trade')
+
+  return category === filter
 }
 
 function ProductCard({ product }: { product: Product }) {
@@ -112,25 +134,31 @@ function ProductCard({ product }: { product: Product }) {
 }
 
 export function ProductSection() {
-  const { t } = useI18n()
+  const { locale, t } = useI18n()
   const sectionRef = useRef<HTMLElement>(null)
   const [activeFilter, setActiveFilter] = useState('all')
   const [products, setProducts] = useState<Product[]>(allProducts)
+  const [loading, setLoading] = useState(true)
 
   const filterLabels: Record<string, string> = {
     all: t('products.all'),
-    phone: t('nav.iphone'),
-    laptop: t('nav.macbook'),
+    iphone: t('nav.iphone'),
+    android: t('nav.android'),
+    macbook: t('nav.macbook'),
+    windows: t('nav.windows'),
     pc: t('nav.gaming'),
     tablet: 'Tablet',
     accessory: t('nav.accessories'),
+    used: t('nav.used'),
   }
 
   useEffect(() => {
-    fetchProducts()
+    setLoading(true)
+    fetchProducts({ locale })
       .then((items) => setProducts(items))
       .catch((error) => console.error('Failed to load featured products:', error))
-  }, [])
+      .finally(() => setLoading(false))
+  }, [locale])
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -143,9 +171,16 @@ export function ProductSection() {
 
   const filteredProducts = (activeFilter === 'all'
     ? products
-    : products.filter((product) => normalizeCategory(product.category) === activeFilter)
+    : products.filter((product) => productMatchesFilter(product, activeFilter))
   ).slice(0, 8)
-  const viewAllHref = activeFilter === 'all' ? '/products' : `/products?category=${activeFilter}`
+  const viewAllHref =
+    activeFilter === 'all'
+      ? '/products'
+      : activeFilter === 'used'
+        ? '/used'
+        : ['iphone', 'android', 'macbook', 'windows'].includes(activeFilter)
+          ? `/products?segment=${activeFilter}`
+          : `/products?category=${activeFilter}`
 
   return (
     <section ref={sectionRef} id="products" className="bg-background py-20">
@@ -168,11 +203,15 @@ export function ProductSection() {
           </div>
         </div>
 
-        <div className="reveal delay-100 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {filteredProducts.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        {loading ? (
+          <ProductGridSkeleton className="reveal delay-100" count={8} />
+        ) : (
+          <div className="reveal delay-100 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {filteredProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        )}
 
         <div className="reveal delay-200 mt-10 flex justify-center">
           <Link href={viewAllHref} className="rounded-lg border border-border px-8 py-3 text-sm font-semibold text-muted-foreground transition hover:border-foreground hover:text-foreground">

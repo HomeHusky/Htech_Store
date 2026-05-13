@@ -24,6 +24,7 @@ import { Footer } from '@/components/storefront/footer'
 import { useI18n } from '@/lib/i18n'
 import { useCart, type Product } from '@/lib/store'
 import { fetchProduct, fetchProducts } from '@/lib/products-api'
+import { ProductDetailSkeleton } from '@/components/loading-skeletons'
 
 export default function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -83,7 +84,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     return (
       <main className="min-h-screen bg-background">
         <Navbar />
-        <div className="max-w-7xl mx-auto px-4 py-16 text-sm text-muted-foreground sm:px-6 lg:px-8">
+        <ProductDetailSkeleton />
+        <div className="sr-only">
           Đang tải chi tiết sản phẩm...
         </div>
         <Footer />

@@ -6,6 +6,8 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { AdminHeader } from '@/components/admin/header'
 import { fetchAdminProducts, type ProductDTO } from '@/lib/products-api'
 import { cn } from '@/lib/utils'
+import { AdminListSkeleton, AdminStatGridSkeleton, AdminTableSkeleton } from '@/components/loading-skeletons'
+import { Skeleton } from '@/components/ui/skeleton'
 
 type InventoryStatus = 'healthy' | 'low' | 'critical' | 'out'
 
@@ -61,7 +63,12 @@ export default function InventoryPage() {
     <div className="flex h-full flex-col">
       <AdminHeader title="Cảnh báo tồn kho" subtitle="Theo dõi tồn kho thời gian thực và dự báo nhập hàng" />
       <div className="flex-1 space-y-6 overflow-y-auto p-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {loading && (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <AdminStatGridSkeleton count={3} />
+          </div>
+        )}
+        <div className={cn('grid grid-cols-1 gap-4 sm:grid-cols-3', loading && 'hidden')}>
           {[
             { label: 'Hết hàng', count: inventory.filter((item) => item.status === 'out').length, color: 'text-red-600', bg: 'bg-red-50 border-red-100' },
             { label: 'Nguy cấp (<5)', count: inventory.filter((item) => item.status === 'critical').length, color: 'text-orange-600', bg: 'bg-orange-50 border-orange-100' },
@@ -86,7 +93,9 @@ export default function InventoryPage() {
             </button>
           </div>
           {loading ? (
-            <div className="p-8 text-sm text-muted-foreground">Đang tải tồn kho...</div>
+            <div className="p-5">
+              <AdminListSkeleton count={3} />
+            </div>
           ) : alerts.length === 0 ? (
             <div className="p-8 text-sm text-muted-foreground">Không có cảnh báo tồn kho.</div>
           ) : (
@@ -123,7 +132,16 @@ export default function InventoryPage() {
           <div className="border-b border-border px-5 py-4">
             <h3 className="text-sm font-bold text-foreground">Tình trạng tồn kho đầy đủ</h3>
           </div>
-          <div className="overflow-x-auto">
+          {loading && (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[860px]">
+                <tbody className="divide-y divide-border">
+                  <AdminTableSkeleton columns={7} rows={6} />
+                </tbody>
+              </table>
+            </div>
+          )}
+          <div className={cn('overflow-x-auto', loading && 'hidden')}>
             <table className="w-full min-w-[860px]">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
@@ -160,6 +178,9 @@ export default function InventoryPage() {
 
         <div className="rounded-xl border border-border bg-card p-5">
           <h3 className="mb-5 text-sm font-bold text-foreground">Tốc độ bán và mức tồn kho</h3>
+          {loading ? (
+            <Skeleton className="h-[220px] w-full rounded-lg" />
+          ) : (
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={velocityData} barGap={4}>
               <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.91 0 0)" vertical={false} />
@@ -170,6 +191,7 @@ export default function InventoryPage() {
               <Bar dataKey="velocity" fill="#0071e3" name="Bán/ngày" radius={[4, 4, 0, 0]} barSize={20} />
             </BarChart>
           </ResponsiveContainer>
+          )}
         </div>
       </div>
     </div>

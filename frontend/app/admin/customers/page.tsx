@@ -6,6 +6,7 @@ import { AdminHeader } from '@/components/admin/header'
 import api from '@/lib/api'
 import { formatVnd } from '@/lib/products-api'
 import { cn } from '@/lib/utils'
+import { AdminListSkeleton, AdminStatGridSkeleton } from '@/components/loading-skeletons'
 
 type Customer = {
   id: string
@@ -70,7 +71,7 @@ export default function CustomersPage() {
             </div>
             <div className="flex flex-1 flex-col gap-2 overflow-y-auto">
               {loading ? (
-                <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">Đang tải khách hàng...</div>
+                <AdminListSkeleton count={5} />
               ) : filtered.length === 0 ? (
                 <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">Không có khách hàng phù hợp.</div>
               ) : filtered.map((customer) => (
@@ -89,7 +90,18 @@ export default function CustomersPage() {
             </div>
           </div>
 
-          {selected && (
+          {loading && (
+            <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto">
+              <section className="rounded-xl border border-border bg-card p-5">
+                <AdminStatGridSkeleton count={3} />
+              </section>
+              <section className="rounded-xl border border-border bg-card p-5">
+                <AdminListSkeleton count={3} />
+              </section>
+            </div>
+          )}
+
+          {!loading && selected && (
             <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto">
               <section className="rounded-xl border border-border bg-card p-5">
                 <div className="flex items-start gap-4">

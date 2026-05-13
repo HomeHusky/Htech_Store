@@ -19,6 +19,7 @@ export type Product = {
   colors: string[]
   category: string
   brand: string
+  isTradeIn?: boolean
   specs?: Record<string, string>
   description?: string
 }

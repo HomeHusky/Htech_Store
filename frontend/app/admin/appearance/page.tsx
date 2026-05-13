@@ -6,6 +6,7 @@ import { AdminHeader } from '@/components/admin/header'
 import api from '@/lib/api'
 import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
+import { Skeleton } from '@/components/ui/skeleton'
 
 type ColorPreset = {
   id?: string
@@ -66,6 +67,7 @@ export default function AppearancePage() {
   const [customPrimary, setCustomPrimary] = useState('#0ea5e9')
   const [customSurface, setCustomSurface] = useState('#f0f9ff')
   const [saved, setSaved] = useState(false)
+  const [paletteLoading, setPaletteLoading] = useState(true)
 
   useEffect(() => {
     try {
@@ -87,6 +89,7 @@ export default function AppearancePage() {
         if (activeIndex >= 0) setSelectedColor(colorPresets.length + activeIndex)
       })
       .catch(() => undefined)
+      .finally(() => setPaletteLoading(false))
   }, [])
 
   const allColorPresets = useMemo(() => [...colorPresets, ...backendColors, ...customColors], [backendColors, customColors])
@@ -183,6 +186,15 @@ export default function AppearancePage() {
                     </span>
                     {selectedColor === index && <Check className="h-4 w-4 text-accent" />}
                   </button>
+                ))}
+                {paletteLoading && Array.from({ length: 3 }).map((_, index) => (
+                  <div key={`palette-skeleton-${index}`} className="flex items-center gap-3 rounded-lg border border-border p-4">
+                    <Skeleton className="h-9 w-9 rounded-lg" />
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-3 w-16" />
+                    </div>
+                  </div>
                 ))}
               </div>
               <div className="mt-4 grid gap-3 rounded-lg border border-dashed border-border p-4 lg:grid-cols-[1fr_auto_auto_auto] lg:items-end">

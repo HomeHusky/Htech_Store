@@ -5,6 +5,7 @@ import { Calendar, Check, CheckCircle, Clock, Copy, DollarSign, Gift, Percent, P
 import { AdminHeader } from '@/components/admin/header'
 import api from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { AdminCardGridSkeleton, AdminStatGridSkeleton } from '@/components/loading-skeletons'
 
 type PromoType = 'percentage' | 'fixed' | 'freeShipping'
 type PromoStatus = 'active' | 'scheduled' | 'expired' | 'disabled'
@@ -127,7 +128,12 @@ export default function PromotionsPage() {
     <>
       <AdminHeader title="Khuyến mãi" subtitle="Tạo mã giảm giá, theo dõi lượt dùng và chiến dịch ưu đãi" />
       <div className="flex-1 space-y-6 overflow-y-auto p-6">
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {loading && (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <AdminStatGridSkeleton count={4} />
+          </div>
+        )}
+        <div className={cn('grid gap-4 sm:grid-cols-2 xl:grid-cols-4', loading && 'hidden')}>
           <StatCard label="Tổng mã" value={stats.total.toString()} icon={Tag} />
           <StatCard label="Đang chạy" value={stats.active.toString()} icon={Zap} tone="green" />
           <StatCard label="Lượt dùng" value={stats.totalUsage.toLocaleString('vi-VN')} icon={Users} tone="blue" />
@@ -149,7 +155,7 @@ export default function PromotionsPage() {
         </div>
 
         {loading ? (
-          <div className="rounded-xl border border-border bg-card p-8 text-sm text-muted-foreground">Đang tải mã khuyến mãi...</div>
+          <AdminCardGridSkeleton count={6} className="lg:grid-cols-2 2xl:grid-cols-3" />
         ) : (
           <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
             {filteredPromotions.map((promo) => {

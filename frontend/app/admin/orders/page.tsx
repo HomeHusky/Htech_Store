@@ -6,6 +6,7 @@ import { AdminHeader } from '@/components/admin/header'
 import { cn } from '@/lib/utils'
 import api from '@/lib/api'
 import { formatVnd } from '@/lib/products-api'
+import { AdminTableSkeleton } from '@/components/loading-skeletons'
 
 type OrderStatus = 'Awaiting Deposit' | 'Paid' | 'Service Ongoing' | 'Completed' | 'Cancelled'
 
@@ -86,7 +87,16 @@ export default function OrdersPage() {
         </div>
 
         <div className="overflow-hidden rounded-xl border border-border bg-card">
-          <div className="overflow-x-auto">
+          {loading && (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1000px]">
+                <tbody className="divide-y divide-border">
+                  <AdminTableSkeleton columns={7} rows={6} />
+                </tbody>
+              </table>
+            </div>
+          )}
+          <div className={cn('overflow-x-auto', loading && 'hidden')}>
             <table className="w-full min-w-[1000px]">
               <thead>
                 <tr className="border-b border-border bg-muted/30">

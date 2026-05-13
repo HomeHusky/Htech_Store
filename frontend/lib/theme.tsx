@@ -32,11 +32,16 @@ const defaultBrandTheme: BrandTheme = {
 
 function applyBrandTheme(brandTheme: BrandTheme) {
   const root = document.documentElement
+  const darkMode = root.classList.contains('dark')
   root.style.setProperty('--accent', brandTheme.primary)
   root.style.setProperty('--ring', brandTheme.primary)
   root.style.setProperty('--blue', brandTheme.primary)
   root.style.setProperty('--blue-dark', brandTheme.primary)
-  root.style.setProperty('--surface', brandTheme.surface)
+  if (darkMode) {
+    root.style.removeProperty('--surface')
+  } else {
+    root.style.setProperty('--surface', brandTheme.surface)
+  }
   root.style.setProperty('--font-brand', brandTheme.font)
   document.body.style.fontFamily = brandTheme.font
 }
@@ -75,8 +80,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     } else {
       root.classList.remove('dark')
     }
+    applyBrandTheme(brandTheme)
     localStorage.setItem('htech-theme', theme)
-  }, [theme, mounted])
+  }, [theme, mounted, brandTheme])
 
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme)

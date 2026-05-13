@@ -54,6 +54,7 @@ export type StoreProduct = {
   colors: string[]
   category: string
   brand: string
+  isTradeIn: boolean
   specs?: Record<string, string>
   description?: string
   raw: ProductDTO
@@ -104,7 +105,12 @@ function normalizeCategory(value?: string | null) {
     smartphone: 'phone',
     mobile: 'phone',
     phone: 'phone',
+    android: 'phone',
     macbook: 'laptop',
+    windows: 'laptop',
+    window: 'laptop',
+    lapwindow: 'laptop',
+    windowslaptop: 'laptop',
     laptop: 'laptop',
     gaming: 'pc',
     pcgaming: 'pc',
@@ -137,6 +143,7 @@ export function toStoreProduct(product: ProductDTO, locale: 'vi' | 'en' = 'vi'):
     colors: ['#111827', '#e5e7eb', '#2563eb'],
     category: product.category,
     brand: product.brand,
+    isTradeIn: Boolean(product.is_trade_in),
     specs: specsFromDetails(product.details, product.highlightSpecs),
     description: localized(product.description, '', locale),
     raw: product,
@@ -173,6 +180,7 @@ function searchRowToStoreProduct(product: ProductSearchRow, locale: 'vi' | 'en' 
     category: product.category,
     tagline: {},
     basePrice: product.price,
+    is_trade_in: product.is_trade_in,
     image: product.image,
     gallery: [],
     description: {},

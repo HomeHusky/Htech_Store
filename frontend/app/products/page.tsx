@@ -23,10 +23,18 @@ import { Footer } from '@/components/storefront/footer'
 import { useI18n } from '@/lib/i18n'
 import { useCart, allProducts, type Product } from '@/lib/store'
 import { fetchProducts } from '@/lib/products-api'
+import { ProductGridSkeleton, ProductListSkeleton } from '@/components/loading-skeletons'
+import { Skeleton } from '@/components/ui/skeleton'
 
 const categories = ['Tất cả', 'iPhone', 'MacBook', 'Gaming', 'Accessories']
-const brands = ['Apple', 'ASUS', 'Samsung', 'HTech Custom']
+const brands = ['Apple', 'ASUS', 'Samsung', 'Dell', 'HP', 'Lenovo', 'Xiaomi', 'HTech Custom']
+const segmentOptionIds = ['iphone', 'android', 'macbook', 'windows', 'used']
 const categoryOptions = [
+  { id: 'iphone', vi: 'iPhone', en: 'iPhone' },
+  { id: 'android', vi: 'Android', en: 'Android' },
+  { id: 'macbook', vi: 'MacBook', en: 'MacBook' },
+  { id: 'windows', vi: 'Laptop Windows', en: 'Windows laptops' },
+  { id: 'used', vi: 'Máy cũ', en: 'Used devices' },
   { id: 'all', vi: 'Tất cả', en: 'All' },
   { id: 'phone', vi: 'Điện thoại', en: 'Phones' },
   { id: 'laptop', vi: 'Laptop', en: 'Laptops' },
@@ -51,9 +59,14 @@ function normalizeCategory(value?: string | null) {
   const key = (value || 'all').trim().toLowerCase()
   const aliases: Record<string, string> = {
     iphone: 'phone',
+    android: 'phone',
     smartphone: 'phone',
     phone: 'phone',
     macbook: 'laptop',
+    windows: 'laptop',
+    window: 'laptop',
+    lapwindow: 'laptop',
+    windowslaptop: 'laptop',
     laptop: 'laptop',
     gaming: 'pc',
     pc: 'pc',
@@ -63,6 +76,46 @@ function normalizeCategory(value?: string | null) {
     all: 'all',
   }
   return aliases[key] || key
+}
+
+function normalizeSegment(value?: string | null) {
+  const key = (value || 'all').trim().toLowerCase().replace(/[-_\s]/g, '')
+  const aliases: Record<string, string> = {
+    iphone: 'iphone',
+    ios: 'iphone',
+    android: 'android',
+    macbook: 'macbook',
+    mac: 'macbook',
+    windows: 'windows',
+    window: 'windows',
+    lapwindow: 'windows',
+    windowslaptop: 'windows',
+    used: 'used',
+    old: 'used',
+    tradein: 'used',
+    all: 'all',
+  }
+  return aliases[key] || 'all'
+}
+
+function isSegmentOption(value: string) {
+  return segmentOptionIds.includes(value)
+}
+
+function productMatchesSegment(product: Product, segment: string) {
+  if (segment === 'all') return true
+  const category = normalizeCategory(product.category)
+  const name = product.name.toLowerCase()
+  const brand = product.brand.toLowerCase()
+  const isApple = brand.includes('apple') || name.includes('iphone') || name.includes('macbook')
+
+  if (segment === 'iphone') return category === 'phone' && (brand.includes('apple') || name.includes('iphone'))
+  if (segment === 'android') return category === 'phone' && !isApple
+  if (segment === 'macbook') return category === 'laptop' && (brand.includes('apple') || name.includes('macbook'))
+  if (segment === 'windows') return category === 'laptop' && !isApple
+  if (segment === 'used') return Boolean(product.isTradeIn) || name.includes('used') || name.includes('trade')
+
+  return true
 }
 
 function ProductCard({ product }: { product: Product }) {
@@ -198,6 +251,7 @@ function ProductsContent() {
   const [filterOpen, setFilterOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '')
   const [selectedCategory, setSelectedCategory] = useState(normalizeCategory(searchParams.get('category')))
+  const [selectedSegment, setSelectedSegment] = useState(normalizeSegment(searchParams.get('segment')))
   const [selectedBrands, setSelectedBrands] = useState<string[]>([])
   const [selectedPriceRange, setSelectedPriceRange] = useState<number | null>(null)
   const [sortBy, setSortBy] = useState('newest')
@@ -207,15 +261,18 @@ function ProductsContent() {
 
   useEffect(() => {
     const category = searchParams.get('category')
+    const segment = searchParams.get('segment')
     const badge = searchParams.get('badge')
     const search = searchParams.get('search')
     
     setSelectedCategory(category ? normalizeCategory(category) : 'all')
+    setSelectedSegment(segment ? normalizeSegment(segment) : 'all')
     if (badge === 'Sale') setSelectedCategory('all')
     setSearchQuery(search || '')
   }, [searchParams])
 
   useEffect(() => {
+    setLoading(true)
     fetchProducts({ locale })
       .then((items) => setProducts(items))
       .catch((error) => console.error('Failed to fetch products:', error))
@@ -238,6 +295,10 @@ function ProductsContent() {
     // Category filter
     if (normalizeCategory(selectedCategory) !== 'all') {
       result = result.filter(p => normalizeCategory(p.category) === normalizeCategory(selectedCategory))
+    }
+
+    if (normalizeSegment(selectedSegment) !== 'all') {
+      result = result.filter(p => productMatchesSegment(p, normalizeSegment(selectedSegment)))
     }
 
     // Badge filter (from URL)
@@ -273,11 +334,12 @@ function ProductsContent() {
     }
 
     return result
-  }, [products, searchQuery, selectedCategory, selectedBrands, selectedPriceRange, sortBy, searchParams])
+  }, [products, searchQuery, selectedCategory, selectedSegment, selectedBrands, selectedPriceRange, sortBy, searchParams])
 
   const clearFilters = () => {
     setSearchQuery('')
     setSelectedCategory('all')
+    setSelectedSegment('all')
     setSelectedBrands([])
     setSelectedPriceRange(null)
     setSortBy('newest')
@@ -285,23 +347,39 @@ function ProductsContent() {
   }
 
   const updateCategory = (categoryId: string) => {
-    const normalized = normalizeCategory(categoryId)
-    setSelectedCategory(normalized)
+    const isSegment = isSegmentOption(categoryId)
+    const normalized = isSegment ? normalizeSegment(categoryId) : normalizeCategory(categoryId)
+    setSelectedCategory(isSegment ? 'all' : normalized)
+    setSelectedSegment(isSegment ? normalized : 'all')
     const params = new URLSearchParams(searchParams.toString())
     params.delete('badge')
+    params.delete('category')
+    params.delete('segment')
+    if (normalized !== 'all') {
+      if (isSegment) {
+        params.set('segment', normalized)
+      } else {
+        params.set('category', normalized)
+      }
+    }
     if (normalized === 'all') {
       params.delete('category')
-    } else {
-      params.set('category', normalized)
+      params.delete('segment')
     }
     const query = params.toString()
     router.push(query ? `${pathname}?${query}` : pathname)
   }
 
   const selectedCategoryId = normalizeCategory(selectedCategory)
-  const hasActiveFilters = searchQuery || selectedCategoryId !== 'all' || selectedBrands.length > 0 || selectedPriceRange !== null
+  const selectedSegmentId = normalizeSegment(selectedSegment)
+  const selectedFilterId = selectedSegmentId !== 'all' ? selectedSegmentId : selectedCategoryId
+  const orderedCategoryOptions = useMemo(
+    () => [...categoryOptions].sort((a, b) => (a.id === 'all' ? -1 : b.id === 'all' ? 1 : 0)),
+    [],
+  )
+  const hasActiveFilters = searchQuery || selectedCategoryId !== 'all' || selectedSegmentId !== 'all' || selectedBrands.length > 0 || selectedPriceRange !== null
   const selectedCategoryLabel =
-    categoryOptions.find((category) => category.id === selectedCategoryId)?.[locale === 'vi' ? 'vi' : 'en'] || selectedCategory
+    categoryOptions.find((category) => category.id === selectedFilterId)?.[locale === 'vi' ? 'vi' : 'en'] || selectedCategory
 
   return (
     <main className="min-h-screen bg-background">
@@ -311,9 +389,10 @@ function ProductsContent() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl sm:text-4xl font-black text-foreground mb-2">
-            {selectedCategoryId === 'all' ? t('products.title') : selectedCategoryLabel}
+            {selectedFilterId === 'all' ? t('products.title') : selectedCategoryLabel}
           </h1>
-          <p className="text-muted-foreground">
+          {loading && <Skeleton className="h-5 w-36" />}
+          <p className={cn('text-muted-foreground', loading && 'sr-only')}>
             {loading ? 'Đang tải sản phẩm...' : `${filteredProducts.length} ${t('cart.items')}`}
           </p>
         </div>
@@ -345,13 +424,13 @@ function ProductsContent() {
                   {t('filter.category')}
                 </label>
                 <div className="space-y-1">
-                  {categoryOptions.map((cat) => (
+                  {orderedCategoryOptions.map((cat) => (
                     <button
                       key={cat.id}
                       onClick={() => updateCategory(cat.id)}
                       className={cn(
                         'w-full text-left px-3 py-2 rounded-lg text-sm transition-colors',
-                        normalizeCategory(selectedCategory) === cat.id
+                        selectedFilterId === cat.id
                           ? 'bg-foreground text-background font-medium'
                           : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                       )}
@@ -488,7 +567,13 @@ function ProductsContent() {
             </div>
 
             {/* Products grid */}
-            {filteredProducts.length > 0 ? (
+            {loading ? (
+              viewMode === 'grid' ? (
+                <ProductGridSkeleton count={6} className="lg:grid-cols-3 xl:grid-cols-3" />
+              ) : (
+                <ProductListSkeleton count={5} />
+              )
+            ) : filteredProducts.length > 0 ? (
               <div className={cn(
                 'grid gap-5',
                 viewMode === 'grid' ? 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1'
@@ -547,13 +632,13 @@ function ProductsContent() {
               <div>
                 <label className="text-sm font-semibold text-foreground mb-3 block">{t('filter.category')}</label>
                 <div className="flex flex-wrap gap-2">
-                  {categoryOptions.map((cat) => (
+                  {orderedCategoryOptions.map((cat) => (
                     <button
                       key={cat.id}
                       onClick={() => updateCategory(cat.id)}
                       className={cn(
                         'px-4 py-2 rounded-xl text-sm transition-colors',
-                        normalizeCategory(selectedCategory) === cat.id
+                        selectedFilterId === cat.id
                           ? 'bg-foreground text-background font-medium'
                           : 'border border-border hover:bg-muted'
                       )}
@@ -636,8 +721,18 @@ export default function ProductsPage() {
       fallback={
         <main className="min-h-screen bg-background">
           <Navbar />
-          <div className="mx-auto max-w-7xl px-4 py-16 text-sm text-muted-foreground sm:px-6 lg:px-8">
-            Dang tai san pham...
+          <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+            <Skeleton className="mb-8 h-10 w-72" />
+            <div className="flex flex-col gap-8 lg:flex-row">
+              <aside className="hidden w-64 shrink-0 space-y-4 lg:block">
+                <Skeleton className="h-10 w-full rounded-xl" />
+                <Skeleton className="h-40 w-full rounded-xl" />
+                <Skeleton className="h-40 w-full rounded-xl" />
+              </aside>
+              <div className="flex-1">
+                <ProductGridSkeleton count={6} className="lg:grid-cols-3 xl:grid-cols-3" />
+              </div>
+            </div>
           </div>
         </main>
       }

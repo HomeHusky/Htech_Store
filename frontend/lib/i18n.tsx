@@ -9,6 +9,9 @@ const translations = {
     // Navigation
     'nav.iphone': 'iPhone',
     'nav.macbook': 'MacBook',
+    'nav.android': 'Android',
+    'nav.windows': 'Laptop Windows',
+    'nav.used': 'Máy cũ',
     'nav.gaming': 'PC Gaming',
     'nav.accessories': 'Phụ kiện',
     'nav.deals': 'Khuyến mãi',
@@ -44,6 +47,15 @@ const translations = {
     'cat.tag.best': 'Bán chạy',
     'cat.tag.new': 'Mới',
     'cat.tag.hot': 'Hot',
+    'cat.iphone': 'iPhone',
+    'cat.macbook': 'MacBook',
+    'cat.android': 'Android',
+    'cat.windows': 'Laptop Windows',
+    'cat.gaming': 'PC Gaming',
+    'cat.used': 'Máy cũ',
+    'cat.android.desc': 'Nhiều lựa chọn, giá linh hoạt',
+    'cat.windows.desc': 'Laptop học tập và làm việc',
+    'cat.used.desc': 'Máy đã kiểm tra, giá tốt',
     'cat.viewall': 'Xem tất cả',
     
     // Products
@@ -316,6 +328,9 @@ const translations = {
     // Navigation
     'nav.iphone': 'iPhone',
     'nav.macbook': 'MacBook',
+    'nav.android': 'Android',
+    'nav.windows': 'Windows laptops',
+    'nav.used': 'Used devices',
     'nav.gaming': 'PC Gaming',
     'nav.accessories': 'Accessories',
     'nav.deals': 'Deals',
@@ -351,6 +366,15 @@ const translations = {
     'cat.tag.best': 'Best Seller',
     'cat.tag.new': 'New',
     'cat.tag.hot': 'Hot',
+    'cat.iphone': 'iPhone',
+    'cat.macbook': 'MacBook',
+    'cat.android': 'Android',
+    'cat.windows': 'Windows laptops',
+    'cat.gaming': 'PC Gaming',
+    'cat.used': 'Used devices',
+    'cat.android.desc': 'More brands, flexible prices',
+    'cat.windows.desc': 'Work and study notebooks',
+    'cat.used.desc': 'Inspected devices, better prices',
     'cat.viewall': 'View all',
     
     // Products
