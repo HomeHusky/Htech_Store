@@ -51,7 +51,7 @@ export function TrustSignals() {
   }, [])
 
   return (
-    <section ref={sectionRef} className="py-20 bg-foreground text-background overflow-hidden">
+    <section ref={sectionRef} className="overflow-hidden border-y border-border bg-surface-alt py-20 text-foreground dark:border-white/10 dark:bg-foreground dark:text-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="reveal text-center mb-12">
           <p className="text-xs font-semibold text-accent uppercase tracking-widest mb-3">
@@ -62,21 +62,21 @@ export function TrustSignals() {
           </h2>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-px bg-white/10 rounded-2xl overflow-hidden">
+        <div className="grid grid-cols-2 overflow-hidden rounded-2xl border border-border bg-border md:grid-cols-3 lg:grid-cols-6 dark:border-white/10 dark:bg-white/10">
           {signals.map((signal, i) => {
             const Icon = signal.icon
             return (
               <div
                 key={signal.title}
-                className={`reveal bg-foreground p-6 flex flex-col items-center text-center gap-3 hover:bg-white/5 transition-colors`}
+                className="reveal flex flex-col items-center gap-3 bg-card p-6 text-center transition-colors hover:bg-muted dark:bg-foreground dark:hover:bg-white/5"
                 style={{ animationDelay: `${i * 0.07}s` }}
               >
-                <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center">
-                  <Icon className="w-5 h-5 text-accent" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-sm shadow-accent/20">
+                  <Icon className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-background leading-snug">{signal.title}</p>
-                  <p className="text-xs text-background/50 mt-1 leading-relaxed">{signal.desc}</p>
+                  <p className="text-sm font-bold leading-snug text-foreground dark:text-background">{signal.title}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground dark:text-background/65">{signal.desc}</p>
                 </div>
               </div>
             )

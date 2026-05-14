@@ -160,19 +160,26 @@ export function ProductSection() {
       .finally(() => setLoading(false))
   }, [locale])
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => entries.forEach((entry) => entry.isIntersecting && entry.target.classList.add('visible')),
-      { threshold: 0.05 },
-    )
-    sectionRef.current?.querySelectorAll('.reveal').forEach((el) => observer.observe(el))
-    return () => observer.disconnect()
-  }, [])
-
   const filteredProducts = (activeFilter === 'all'
     ? products
     : products.filter((product) => productMatchesFilter(product, activeFilter))
   ).slice(0, 8)
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) =>
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible')
+            observer.unobserve(entry.target)
+          }
+        }),
+      { threshold: 0.05 },
+    )
+    sectionRef.current?.querySelectorAll('.reveal:not(.visible)').forEach((el) => observer.observe(el))
+    return () => observer.disconnect()
+  }, [activeFilter, filteredProducts.length, loading])
+
   const viewAllHref =
     activeFilter === 'all'
       ? '/products'
@@ -205,6 +212,17 @@ export function ProductSection() {
 
         {loading ? (
           <ProductGridSkeleton className="reveal delay-100" count={8} />
+        ) : filteredProducts.length === 0 ? (
+          <div className="reveal delay-100 rounded-xl border border-dashed border-border bg-card px-6 py-12 text-center">
+            <p className="text-sm font-semibold text-foreground">
+              {locale === 'en' ? 'No featured products found.' : 'Chưa có sản phẩm nổi bật phù hợp.'}
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {locale === 'en'
+                ? 'Try another category or view the full catalog.'
+                : 'Hãy thử danh mục khác hoặc xem toàn bộ sản phẩm.'}
+            </p>
+          </div>
         ) : (
           <div className="reveal delay-100 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {filteredProducts.map((product) => (

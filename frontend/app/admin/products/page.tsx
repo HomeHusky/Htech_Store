@@ -73,10 +73,10 @@ function stockKey(product: ProductDTO): Exclude<ProductStockFilter, 'all'> {
 }
 
 function aiStatusLabel(status?: string) {
-  if (status === 'pending_review') return 'AI cho xac nhan'
-  if (status === 'confirmed') return 'AI da xac nhan'
-  if (status === 'ignored') return 'AI bo qua'
-  return 'Thu cong'
+  if (status === 'pending_review') return 'AI chờ xác nhận'
+  if (status === 'confirmed') return 'AI đã xác nhận'
+  if (status === 'ignored') return 'AI bỏ qua'
+  return 'Thủ công'
 }
 
 function aiStatusClass(status?: string) {
@@ -211,8 +211,8 @@ export default function ProductsPage() {
     <div className="flex h-full flex-col">
       <AdminHeader title="Quản lý sản phẩm" subtitle="Quản lý dữ liệu thật: giá, tồn kho, khuyến mãi và trạng thái bán" />
       <div className="flex-1 space-y-4 overflow-y-auto p-6">
-        <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-          <div className="flex flex-wrap gap-3">
+        <div className="grid gap-3 2xl:grid-cols-[minmax(0,1fr)_auto] 2xl:items-start">
+          <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[minmax(240px,1.4fr)_repeat(4,minmax(150px,1fr))]">
             <div className="relative flex items-center">
               <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
               <input
@@ -220,41 +220,41 @@ export default function ProductsPage() {
                 placeholder={t('admin.search_placeholder')}
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                className="w-64 rounded-lg border border-border bg-card py-2.5 pl-9 pr-4 text-sm text-foreground outline-none transition focus:border-accent"
+                className="h-10 w-full rounded-lg border border-border bg-card py-2.5 pl-9 pr-4 text-sm text-foreground outline-none transition focus:border-accent"
               />
             </div>
-            <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} className="h-10 rounded-lg border border-border bg-card px-3 text-sm outline-none focus:border-accent">
+            <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm outline-none focus:border-accent">
               <option value="all">Tất cả danh mục</option>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>{category.name.vi || category.name.en || category.id}</option>
               ))}
             </select>
-            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as ProductStatusFilter)} className="h-10 rounded-lg border border-border bg-card px-3 text-sm outline-none focus:border-accent">
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as ProductStatusFilter)} className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm outline-none focus:border-accent">
               <option value="all">Tất cả trạng thái</option>
               <option value="selling">{t('admin.selling')}</option>
               <option value="draft">{t('admin.draft')}</option>
               <option value="out">{t('admin.out_stock')}</option>
             </select>
-            <select value={stockFilter} onChange={(event) => setStockFilter(event.target.value as ProductStockFilter)} className="h-10 rounded-lg border border-border bg-card px-3 text-sm outline-none focus:border-accent">
+            <select value={stockFilter} onChange={(event) => setStockFilter(event.target.value as ProductStockFilter)} className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm outline-none focus:border-accent">
               <option value="all">Tất cả tồn kho</option>
               <option value="in_stock">Còn hàng</option>
               <option value="low">Sắp hết</option>
               <option value="out">Hết hàng</option>
             </select>
-            <select value={aiStatusFilter} onChange={(event) => setAiStatusFilter(event.target.value as ProductAIStatusFilter)} className="h-10 rounded-lg border border-border bg-card px-3 text-sm outline-none focus:border-accent">
-              <option value="all">Tat ca nguon tao</option>
-              <option value="pending_review">AI cho xac nhan</option>
-              <option value="confirmed">AI da xac nhan</option>
-              <option value="ignored">AI bo qua</option>
-              <option value="manual">Thu cong</option>
+            <select value={aiStatusFilter} onChange={(event) => setAiStatusFilter(event.target.value as ProductAIStatusFilter)} className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm outline-none focus:border-accent">
+              <option value="all">Tất cả nguồn tạo</option>
+              <option value="pending_review">AI chờ xác nhận</option>
+              <option value="confirmed">AI đã xác nhận</option>
+              <option value="ignored">AI bỏ qua</option>
+              <option value="manual">Thủ công</option>
             </select>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button onClick={() => setAiImportOpen(true)} className="flex items-center gap-2 rounded-lg border border-accent/30 bg-accent/10 px-4 py-2.5 text-sm font-semibold text-accent transition hover:bg-accent/20">
+          <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 2xl:w-auto 2xl:auto-cols-max 2xl:grid-flow-col 2xl:grid-cols-none">
+            <button onClick={() => setAiImportOpen(true)} className="inline-flex h-10 min-w-[150px] items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-accent/30 bg-accent/10 px-4 text-sm font-semibold text-accent transition hover:bg-accent/20">
               <WandSparkles className="h-4 w-4" />
-              Them bang AI
+              Thêm bằng AI
             </button>
-            <button onClick={openCreateModal} className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground transition hover:bg-blue-dark">
+            <button onClick={openCreateModal} className="inline-flex h-10 min-w-[150px] items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground transition hover:bg-blue-dark">
               <Plus className="h-4 w-4" />
               {t('admin.add_product')}
             </button>
@@ -334,10 +334,10 @@ export default function ProductsPage() {
                           <div className="flex items-center gap-2">
                             {product.ai_status === 'pending_review' && (
                               <>
-                                <button onClick={() => updateAIStatus(product, 'confirmed')} disabled={updatingAIStatusId === product.id} className="rounded-lg p-2 text-green-600 hover:bg-green-500/10 disabled:opacity-50" aria-label="Xac nhan AI">
+                                <button onClick={() => updateAIStatus(product, 'confirmed')} disabled={updatingAIStatusId === product.id} className="rounded-lg p-2 text-green-600 hover:bg-green-500/10 disabled:opacity-50" aria-label="Xác nhận AI">
                                   <CheckCircle2 className="h-4 w-4" />
                                 </button>
-                                <button onClick={() => updateAIStatus(product, 'ignored')} disabled={updatingAIStatusId === product.id} className="rounded-lg p-2 text-muted-foreground hover:bg-slate-500/10 disabled:opacity-50" aria-label="Bo qua AI">
+                                <button onClick={() => updateAIStatus(product, 'ignored')} disabled={updatingAIStatusId === product.id} className="rounded-lg p-2 text-muted-foreground hover:bg-slate-500/10 disabled:opacity-50" aria-label="Bỏ qua AI">
                                   <XCircle className="h-4 w-4" />
                                 </button>
                               </>
