@@ -8,13 +8,13 @@ type ApiResponse<T = any> = {
   headers: Headers
 }
 
-const API_BASE_URL =
+export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ??
   (process.env.NEXT_PUBLIC_BACKEND_URL
     ? `${process.env.NEXT_PUBLIC_BACKEND_URL.replace(/\/$/, '')}/api`
     : `http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8000/api`)
 
-function buildUrl(path: string, params?: RequestConfig['params']) {
+export function buildApiUrl(path: string, params?: RequestConfig['params']) {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`
   const url = new URL(`${API_BASE_URL.replace(/\/$/, '')}${normalizedPath}`)
 
@@ -33,7 +33,7 @@ async function request<T = any>(method: string, path: string, body?: unknown, co
   const { params, headers, ...init } = config
   const token = typeof window !== 'undefined' ? localStorage.getItem('htech-auth-token') : null
   const isFormData = typeof FormData !== 'undefined' && body instanceof FormData
-  const response = await fetch(buildUrl(path, params), {
+  const response = await fetch(buildApiUrl(path, params), {
     ...init,
     method,
     headers: {

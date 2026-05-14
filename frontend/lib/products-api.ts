@@ -1,5 +1,7 @@
 import api from '@/lib/api'
 
+export type ProductAIStatus = 'manual' | 'pending_review' | 'confirmed' | 'ignored'
+
 export type ProductDTO = {
   id: string
   slug: string
@@ -21,6 +23,7 @@ export type ProductDTO = {
   rating: number
   reviewCount: number
   discountPercent: number
+  ai_status?: ProductAIStatus
   created_at?: string | null
 }
 
@@ -194,6 +197,7 @@ function searchRowToStoreProduct(product: ProductSearchRow, locale: 'vi' | 'en' 
     rating: 5,
     reviewCount: 0,
     discountPercent: product.discount || 0,
+    ai_status: 'manual',
   }, locale)
 }
 
