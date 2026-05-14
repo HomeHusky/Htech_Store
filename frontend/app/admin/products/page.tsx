@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Edit2, Plus, Search, Sparkles, Trash2 } from 'lucide-react'
+import { CheckCircle2, Edit2, Plus, Search, Sparkles, Trash2, WandSparkles, XCircle } from 'lucide-react'
 import { AdminHeader } from '@/components/admin/header'
+import { AIProductImportModal } from '@/components/admin/ai-product-import-modal'
 import { ProductEditModal } from '@/components/admin/product-edit-modal'
 import { cn } from '@/lib/utils'
 import api from '@/lib/api'
@@ -38,12 +39,14 @@ const emptyProduct: ProductDTO = {
   rating: 5,
   reviewCount: 0,
   discountPercent: 0,
+  ai_status: 'manual',
   created_at: null,
 }
 
 type ProductSortKey = 'name' | 'sku' | 'category' | 'price' | 'stock' | 'status' | 'created'
 type ProductStatusFilter = 'all' | 'selling' | 'draft' | 'out'
 type ProductStockFilter = 'all' | 'in_stock' | 'low' | 'out'
+type ProductAIStatusFilter = 'all' | 'pending_review' | 'confirmed' | 'ignored' | 'manual'
 
 function statusOf(product: ProductDTO, t: any) {
   if (!product.available) return t('admin.draft')
@@ -69,6 +72,20 @@ function stockKey(product: ProductDTO): Exclude<ProductStockFilter, 'all'> {
   return 'in_stock'
 }
 
+function aiStatusLabel(status?: string) {
+  if (status === 'pending_review') return 'AI cho xac nhan'
+  if (status === 'confirmed') return 'AI da xac nhan'
+  if (status === 'ignored') return 'AI bo qua'
+  return 'Thu cong'
+}
+
+function aiStatusClass(status?: string) {
+  if (status === 'pending_review') return 'border-amber-200 bg-amber-50 text-amber-700'
+  if (status === 'confirmed') return 'border-green-200 bg-green-50 text-green-700'
+  if (status === 'ignored') return 'border-slate-200 bg-slate-100 text-slate-500'
+  return 'border-transparent bg-transparent text-muted-foreground'
+}
+
 export default function ProductsPage() {
   const { t } = useI18n()
   const [products, setProducts] = useState<ProductDTO[]>([])
@@ -79,9 +96,12 @@ export default function ProductsPage() {
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState<ProductStatusFilter>('all')
   const [stockFilter, setStockFilter] = useState<ProductStockFilter>('all')
+  const [aiStatusFilter, setAiStatusFilter] = useState<ProductAIStatusFilter>('all')
   const [sort, setSort] = useState<SortState<ProductSortKey>>({ key: 'created', direction: 'desc' })
   const [selectedProduct, setSelectedProduct] = useState<ProductDTO | null>(null)
   const [productModalOpen, setProductModalOpen] = useState(false)
+  const [aiImportOpen, setAiImportOpen] = useState(false)
+  const [updatingAIStatusId, setUpdatingAIStatusId] = useState<string | null>(null)
 
   const loadProducts = async () => {
     setLoading(true)
@@ -150,6 +170,21 @@ export default function ProductsPage() {
     await loadProducts()
   }
 
+  const updateAIStatus = async (product: ProductDTO, aiStatus: 'confirmed' | 'ignored') => {
+    setUpdatingAIStatusId(product.id)
+    try {
+      await api.patch(`/admin/products/${product.id}/ai-status`, { ai_status: aiStatus })
+      await loadProducts()
+    } finally {
+      setUpdatingAIStatusId(null)
+    }
+  }
+
+  const openAIProductForEdit = (product: ProductDTO) => {
+    setAiImportOpen(false)
+    openEditModal(product)
+  }
+
   const filtered = useMemo(() => {
     const query = search.toLowerCase().trim()
     const rows = products.filter((product) => {
@@ -158,7 +193,8 @@ export default function ProductsPage() {
       const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter
       const matchesStatus = statusFilter === 'all' || statusKey(product) === statusFilter
       const matchesStock = stockFilter === 'all' || stockKey(product) === stockFilter
-      return matchesSearch && matchesCategory && matchesStatus && matchesStock
+      const matchesAIStatus = aiStatusFilter === 'all' || (product.ai_status || 'manual') === aiStatusFilter
+      return matchesSearch && matchesCategory && matchesStatus && matchesStock && matchesAIStatus
     })
     return sortRows(rows, sort, {
       name: (product) => localized(product.name),
@@ -169,7 +205,7 @@ export default function ProductsPage() {
       status: (product) => statusOf(product, t),
       created: (product) => parseAdminDate(product.created_at),
     })
-  }, [categoryFilter, products, search, sort, statusFilter, stockFilter, t])
+  }, [aiStatusFilter, categoryFilter, products, search, sort, statusFilter, stockFilter, t])
 
   return (
     <div className="flex h-full flex-col">
@@ -205,11 +241,24 @@ export default function ProductsPage() {
               <option value="low">Sắp hết</option>
               <option value="out">Hết hàng</option>
             </select>
+            <select value={aiStatusFilter} onChange={(event) => setAiStatusFilter(event.target.value as ProductAIStatusFilter)} className="h-10 rounded-lg border border-border bg-card px-3 text-sm outline-none focus:border-accent">
+              <option value="all">Tat ca nguon tao</option>
+              <option value="pending_review">AI cho xac nhan</option>
+              <option value="confirmed">AI da xac nhan</option>
+              <option value="ignored">AI bo qua</option>
+              <option value="manual">Thu cong</option>
+            </select>
           </div>
-          <button onClick={openCreateModal} className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground transition hover:bg-blue-dark">
-            <Plus className="h-4 w-4" />
-            {t('admin.add_product')}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => setAiImportOpen(true)} className="flex items-center gap-2 rounded-lg border border-accent/30 bg-accent/10 px-4 py-2.5 text-sm font-semibold text-accent transition hover:bg-accent/20">
+              <WandSparkles className="h-4 w-4" />
+              Them bang AI
+            </button>
+            <button onClick={openCreateModal} className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground transition hover:bg-blue-dark">
+              <Plus className="h-4 w-4" />
+              {t('admin.add_product')}
+            </button>
+          </div>
         </div>
 
         <div className="overflow-hidden rounded-xl border border-border bg-card">
@@ -247,6 +296,11 @@ export default function ProductsPage() {
                         <td className="px-5 py-4">
                           <p className="max-w-[240px] truncate text-sm font-semibold text-foreground">{localized(product.name)}</p>
                           <p className="mt-0.5 text-xs text-muted-foreground">{product.brand}</p>
+                          {product.ai_status && product.ai_status !== 'manual' && (
+                            <span className={cn('mt-1 inline-flex rounded-lg border px-2 py-0.5 text-[11px] font-semibold', aiStatusClass(product.ai_status))}>
+                              {aiStatusLabel(product.ai_status)}
+                            </span>
+                          )}
                         </td>
                         <td className="px-5 py-4">
                           <p className="text-xs font-mono text-muted-foreground">{product.slug}</p>
@@ -278,6 +332,16 @@ export default function ProductsPage() {
                         </td>
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-2">
+                            {product.ai_status === 'pending_review' && (
+                              <>
+                                <button onClick={() => updateAIStatus(product, 'confirmed')} disabled={updatingAIStatusId === product.id} className="rounded-lg p-2 text-green-600 hover:bg-green-500/10 disabled:opacity-50" aria-label="Xac nhan AI">
+                                  <CheckCircle2 className="h-4 w-4" />
+                                </button>
+                                <button onClick={() => updateAIStatus(product, 'ignored')} disabled={updatingAIStatusId === product.id} className="rounded-lg p-2 text-muted-foreground hover:bg-slate-500/10 disabled:opacity-50" aria-label="Bo qua AI">
+                                  <XCircle className="h-4 w-4" />
+                                </button>
+                              </>
+                            )}
                             <button onClick={() => openEditModal(product)} className="flex items-center gap-1 rounded-lg border border-border bg-muted px-3 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary">
                               <Edit2 className="h-3 w-3" />
                               {t('common.edit')}
@@ -296,6 +360,14 @@ export default function ProductsPage() {
           </div>
         </div>
       </div>
+
+      <AIProductImportModal
+        open={aiImportOpen}
+        categories={categories}
+        onClose={() => setAiImportOpen(false)}
+        onCreated={loadProducts}
+        onEditProduct={openAIProductForEdit}
+      />
 
       <ProductEditModal
         product={selectedProduct}
