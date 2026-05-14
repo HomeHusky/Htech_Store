@@ -7,6 +7,7 @@ import api from '@/lib/api'
 import { formatVnd } from '@/lib/products-api'
 import { cn } from '@/lib/utils'
 import { AdminListSkeleton, AdminStatGridSkeleton } from '@/components/loading-skeletons'
+import { sortRows, type SortState } from '@/lib/admin-list'
 
 type Customer = {
   id: string
@@ -22,6 +23,7 @@ type Customer = {
 
 type UserDTO = { id?: string; email: string; username?: string; full_name?: string; role?: string }
 type OrderDTO = { id: string; customer: string; email: string; total: number; items?: Array<{ name?: string; product_id: string }> }
+type CustomerSortKey = 'name' | 'orders' | 'spend' | 'segment'
 
 const segmentColors: Record<Customer['segment'], string> = {
   VIP: 'text-amber-600 bg-amber-50 border-amber-200',
@@ -33,6 +35,8 @@ export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [segmentFilter, setSegmentFilter] = useState<Customer['segment'] | 'all'>('all')
+  const [sort, setSort] = useState<SortState<CustomerSortKey>>({ key: 'spend', direction: 'desc' })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -53,9 +57,18 @@ export default function CustomersPage() {
 
   const filtered = useMemo(() => {
     const query = search.toLowerCase().trim()
-    if (!query) return customers
-    return customers.filter((customer) => customer.name.toLowerCase().includes(query) || customer.email.toLowerCase().includes(query))
-  }, [customers, search])
+    const rows = customers.filter((customer) => {
+      const matchesSearch = !query || customer.name.toLowerCase().includes(query) || customer.email.toLowerCase().includes(query)
+      const matchesSegment = segmentFilter === 'all' || customer.segment === segmentFilter
+      return matchesSearch && matchesSegment
+    })
+    return sortRows(rows, sort, {
+      name: (customer) => customer.name,
+      orders: (customer) => customer.totalOrders,
+      spend: (customer) => customer.totalSpend,
+      segment: (customer) => customer.segment,
+    })
+  }, [customers, search, segmentFilter, sort])
 
   const selected = customers.find((customer) => customer.id === selectedId)
 
@@ -68,6 +81,21 @@ export default function CustomersPage() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm khách hàng..." className="w-full rounded-xl border border-border bg-card py-2.5 pl-9 pr-4 text-sm text-foreground outline-none transition focus:border-accent" />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <select value={segmentFilter} onChange={(event) => setSegmentFilter(event.target.value as Customer['segment'] | 'all')} className="h-10 rounded-lg border border-border bg-card px-3 text-sm outline-none focus:border-accent">
+                <option value="all">Tất cả nhóm</option>
+                {Object.keys(segmentColors).map((segment) => <option key={segment} value={segment}>{segment}</option>)}
+              </select>
+              <select value={`${sort.key}:${sort.direction}`} onChange={(event) => {
+                const [key, direction] = event.target.value.split(':') as [CustomerSortKey, 'asc' | 'desc']
+                setSort({ key, direction })
+              }} className="h-10 rounded-lg border border-border bg-card px-3 text-sm outline-none focus:border-accent">
+                <option value="spend:desc">Chi tiêu cao</option>
+                <option value="orders:desc">Nhiều đơn</option>
+                <option value="name:asc">Tên A-Z</option>
+                <option value="segment:asc">Nhóm</option>
+              </select>
             </div>
             <div className="flex flex-1 flex-col gap-2 overflow-y-auto">
               {loading ? (

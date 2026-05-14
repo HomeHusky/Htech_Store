@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import api from '@/lib/api'
 import { useI18n } from '@/lib/i18n'
 import { AdminCardGridSkeleton } from '@/components/loading-skeletons'
+import { sortRows, type SortState } from '@/lib/admin-list'
 
 type Category = {
   id: string
@@ -16,6 +17,7 @@ type Category = {
     en?: string
   }
 }
+type CategorySortKey = 'name' | 'slug' | 'id'
 
 const emptyCategory: Category = {
   id: '',
@@ -58,6 +60,7 @@ export default function CategoriesPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [sort, setSort] = useState<SortState<CategorySortKey>>({ key: 'name', direction: 'asc' })
   const [showAddModal, setShowAddModal] = useState(false)
   const [newCategory, setNewCategory] = useState<Category>(emptyCategory)
   const [formError, setFormError] = useState('')
@@ -80,13 +83,17 @@ export default function CategoriesPage() {
 
   const filteredCategories = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
-    if (!query) return categories
-    return categories.filter((category) => {
+    const rows = categories.filter((category) => {
       const vi = category.name.vi ?? ''
       const en = category.name.en ?? ''
-      return [category.id, category.slug, vi, en].some((value) => value.toLowerCase().includes(query))
+      return !query || [category.id, category.slug, vi, en].some((value) => value.toLowerCase().includes(query))
     })
-  }, [categories, searchQuery])
+    return sortRows(rows, sort, {
+      name: (category) => category.name.vi || category.name.en || category.id,
+      slug: (category) => category.slug,
+      id: (category) => category.id,
+    })
+  }, [categories, searchQuery, sort])
 
   const handleNameChange = (value: string) => {
     const id = slugify(value).replace(/-/g, '_')
@@ -164,14 +171,25 @@ export default function CategoriesPage() {
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="relative w-full sm:w-80">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder={t('admin.categories.search_hint')}
-              className="h-10 w-full rounded-lg border border-border bg-background pl-10 pr-3 text-sm outline-none transition focus:border-accent"
-            />
+          <div className="flex flex-wrap gap-3">
+            <div className="relative w-full sm:w-80">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder={t('admin.categories.search_hint')}
+                className="h-10 w-full rounded-lg border border-border bg-background pl-10 pr-3 text-sm outline-none transition focus:border-accent"
+              />
+            </div>
+            <select value={`${sort.key}:${sort.direction}`} onChange={(event) => {
+              const [key, direction] = event.target.value.split(':') as [CategorySortKey, 'asc' | 'desc']
+              setSort({ key, direction })
+            }} className="h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-accent">
+              <option value="name:asc">Tên A-Z</option>
+              <option value="name:desc">Tên Z-A</option>
+              <option value="slug:asc">Slug A-Z</option>
+              <option value="id:asc">ID A-Z</option>
+            </select>
           </div>
           <button
             onClick={() => setShowAddModal(true)}

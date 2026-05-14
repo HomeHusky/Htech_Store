@@ -21,6 +21,7 @@ export type ProductDTO = {
   rating: number
   reviewCount: number
   discountPercent: number
+  created_at?: string | null
 }
 
 export type ProductSearchRow = {

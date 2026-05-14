@@ -1,15 +1,17 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, CheckCircle, Package, RefreshCw, TrendingUp } from 'lucide-react'
+import { AlertTriangle, CheckCircle, Package, RefreshCw, Search, TrendingUp } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { AdminHeader } from '@/components/admin/header'
 import { fetchAdminProducts, type ProductDTO } from '@/lib/products-api'
 import { cn } from '@/lib/utils'
 import { AdminListSkeleton, AdminStatGridSkeleton, AdminTableSkeleton } from '@/components/loading-skeletons'
 import { Skeleton } from '@/components/ui/skeleton'
+import { SortableTh, sortRows, toggleSort, type SortState } from '@/lib/admin-list'
 
 type InventoryStatus = 'healthy' | 'low' | 'critical' | 'out'
+type InventorySortKey = 'name' | 'sku' | 'stock' | 'threshold' | 'velocity' | 'forecast' | 'status'
 
 const statusConfig = {
   healthy: { color: 'text-green-600 bg-green-50 border-green-200', label: 'Ổn định', icon: CheckCircle },
@@ -28,6 +30,9 @@ function statusFor(stock: number): InventoryStatus {
 export default function InventoryPage() {
   const [products, setProducts] = useState<ProductDTO[]>([])
   const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<InventoryStatus | 'all'>('all')
+  const [sort, setSort] = useState<SortState<InventorySortKey>>({ key: 'stock', direction: 'asc' })
 
   const load = async () => {
     setLoading(true)
@@ -53,6 +58,23 @@ export default function InventoryPage() {
   })), [products])
 
   const alerts = inventory.filter((item) => item.status !== 'healthy')
+  const filteredInventory = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    const rows = inventory.filter((item) => {
+      const matchesSearch = !query || [item.name, item.sku].some((value) => value.toLowerCase().includes(query))
+      const matchesStatus = statusFilter === 'all' || item.status === statusFilter
+      return matchesSearch && matchesStatus
+    })
+    return sortRows(rows, sort, {
+      name: (item) => item.name,
+      sku: (item) => item.sku,
+      stock: (item) => item.stock,
+      threshold: (item) => item.threshold,
+      velocity: (item) => item.velocity,
+      forecast: (item) => item.stock === 0 ? 0 : Math.floor(item.stock / item.velocity),
+      status: (item) => statusConfig[item.status].label,
+    })
+  }, [inventory, search, sort, statusFilter])
   const velocityData = inventory.slice(0, 5).map((item) => ({
     name: item.name.split(' ').slice(0, 2).join(' '),
     velocity: item.velocity,
@@ -129,7 +151,17 @@ export default function InventoryPage() {
         </div>
 
         <div className="overflow-hidden rounded-xl border border-border bg-card">
-          <div className="border-b border-border px-5 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
+            <div className="flex flex-wrap gap-3">
+              <div className="relative w-full sm:w-72">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm sản phẩm, SKU..." className="h-10 w-full rounded-lg border border-border bg-background pl-10 pr-3 text-sm outline-none focus:border-accent" />
+              </div>
+              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as InventoryStatus | 'all')} className="h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-accent">
+                <option value="all">Tất cả trạng thái</option>
+                {Object.entries(statusConfig).map(([status, config]) => <option key={status} value={status}>{config.label}</option>)}
+              </select>
+            </div>
             <h3 className="text-sm font-bold text-foreground">Tình trạng tồn kho đầy đủ</h3>
           </div>
           {loading && (
@@ -145,13 +177,17 @@ export default function InventoryPage() {
             <table className="w-full min-w-[860px]">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
-                  {['Sản phẩm', 'SKU', 'Tồn kho', 'Ngưỡng cảnh báo', 'Tốc độ bán', 'Dự báo', 'Trạng thái'].map((heading) => (
-                    <th key={heading} className="whitespace-nowrap px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">{heading}</th>
-                  ))}
+                  <SortableTh label="Sản phẩm" sortKey="name" sort={sort} onSort={(key) => setSort((current) => toggleSort(current, key))} />
+                  <SortableTh label="SKU" sortKey="sku" sort={sort} onSort={(key) => setSort((current) => toggleSort(current, key))} />
+                  <SortableTh label="Tồn kho" sortKey="stock" sort={sort} onSort={(key) => setSort((current) => toggleSort(current, key))} />
+                  <SortableTh label="Ngưỡng cảnh báo" sortKey="threshold" sort={sort} onSort={(key) => setSort((current) => toggleSort(current, key))} />
+                  <SortableTh label="Tốc độ bán" sortKey="velocity" sort={sort} onSort={(key) => setSort((current) => toggleSort(current, key))} />
+                  <SortableTh label="Dự báo" sortKey="forecast" sort={sort} onSort={(key) => setSort((current) => toggleSort(current, key))} />
+                  <SortableTh label="Trạng thái" sortKey="status" sort={sort} onSort={(key) => setSort((current) => toggleSort(current, key))} />
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {inventory.map((item) => {
+                {filteredInventory.map((item) => {
                   const config = statusConfig[item.status]
                   const Icon = config.icon
                   return (

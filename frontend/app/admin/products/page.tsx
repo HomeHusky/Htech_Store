@@ -9,6 +9,7 @@ import api from '@/lib/api'
 import { fetchAdminProducts, formatVnd, localized, type ProductDTO } from '@/lib/products-api'
 import { useI18n } from '@/lib/i18n'
 import { AdminTableSkeleton } from '@/components/loading-skeletons'
+import { SortableTh, formatAdminDate, parseAdminDate, sortRows, toggleSort, type SortState } from '@/lib/admin-list'
 
 type Category = {
   id: string
@@ -37,7 +38,12 @@ const emptyProduct: ProductDTO = {
   rating: 5,
   reviewCount: 0,
   discountPercent: 0,
+  created_at: null,
 }
+
+type ProductSortKey = 'name' | 'sku' | 'category' | 'price' | 'stock' | 'status' | 'created'
+type ProductStatusFilter = 'all' | 'selling' | 'draft' | 'out'
+type ProductStockFilter = 'all' | 'in_stock' | 'low' | 'out'
 
 function statusOf(product: ProductDTO, t: any) {
   if (!product.available) return t('admin.draft')
@@ -51,6 +57,18 @@ function statusClass(product: ProductDTO) {
   return 'border-green-200 bg-green-50 text-green-700'
 }
 
+function statusKey(product: ProductDTO): Exclude<ProductStatusFilter, 'all'> {
+  if (!product.available) return 'draft'
+  if (product.stock <= 0) return 'out'
+  return 'selling'
+}
+
+function stockKey(product: ProductDTO): Exclude<ProductStockFilter, 'all'> {
+  if (product.stock <= 0) return 'out'
+  if (product.stock <= 5) return 'low'
+  return 'in_stock'
+}
+
 export default function ProductsPage() {
   const { t } = useI18n()
   const [products, setProducts] = useState<ProductDTO[]>([])
@@ -58,6 +76,10 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true)
   const [optimizingId, setOptimizingId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState<ProductStatusFilter>('all')
+  const [stockFilter, setStockFilter] = useState<ProductStockFilter>('all')
+  const [sort, setSort] = useState<SortState<ProductSortKey>>({ key: 'created', direction: 'desc' })
   const [selectedProduct, setSelectedProduct] = useState<ProductDTO | null>(null)
   const [productModalOpen, setProductModalOpen] = useState(false)
 
@@ -130,27 +152,59 @@ export default function ProductsPage() {
 
   const filtered = useMemo(() => {
     const query = search.toLowerCase().trim()
-    if (!query) return products
-    return products.filter((product) =>
-      [localized(product.name), product.slug, product.brand, product.category]
-        .some((value) => value.toLowerCase().includes(query)),
-    )
-  }, [products, search])
+    const rows = products.filter((product) => {
+      const matchesSearch = !query || [localized(product.name), product.slug, product.brand, product.category]
+        .some((value) => value.toLowerCase().includes(query))
+      const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter
+      const matchesStatus = statusFilter === 'all' || statusKey(product) === statusFilter
+      const matchesStock = stockFilter === 'all' || stockKey(product) === stockFilter
+      return matchesSearch && matchesCategory && matchesStatus && matchesStock
+    })
+    return sortRows(rows, sort, {
+      name: (product) => localized(product.name),
+      sku: (product) => product.slug,
+      category: (product) => product.category,
+      price: (product) => product.basePrice,
+      stock: (product) => product.stock,
+      status: (product) => statusOf(product, t),
+      created: (product) => parseAdminDate(product.created_at),
+    })
+  }, [categoryFilter, products, search, sort, statusFilter, stockFilter, t])
 
   return (
     <div className="flex h-full flex-col">
       <AdminHeader title="Quản lý sản phẩm" subtitle="Quản lý dữ liệu thật: giá, tồn kho, khuyến mãi và trạng thái bán" />
       <div className="flex-1 space-y-4 overflow-y-auto p-6">
         <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-          <div className="relative flex items-center">
-            <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder={t('admin.search_placeholder')}
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              className="w-64 rounded-lg border border-border bg-card py-2.5 pl-9 pr-4 text-sm text-foreground outline-none transition focus:border-accent"
-            />
+          <div className="flex flex-wrap gap-3">
+            <div className="relative flex items-center">
+              <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder={t('admin.search_placeholder')}
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                className="w-64 rounded-lg border border-border bg-card py-2.5 pl-9 pr-4 text-sm text-foreground outline-none transition focus:border-accent"
+              />
+            </div>
+            <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} className="h-10 rounded-lg border border-border bg-card px-3 text-sm outline-none focus:border-accent">
+              <option value="all">Tất cả danh mục</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>{category.name.vi || category.name.en || category.id}</option>
+              ))}
+            </select>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as ProductStatusFilter)} className="h-10 rounded-lg border border-border bg-card px-3 text-sm outline-none focus:border-accent">
+              <option value="all">Tất cả trạng thái</option>
+              <option value="selling">{t('admin.selling')}</option>
+              <option value="draft">{t('admin.draft')}</option>
+              <option value="out">{t('admin.out_stock')}</option>
+            </select>
+            <select value={stockFilter} onChange={(event) => setStockFilter(event.target.value as ProductStockFilter)} className="h-10 rounded-lg border border-border bg-card px-3 text-sm outline-none focus:border-accent">
+              <option value="all">Tất cả tồn kho</option>
+              <option value="in_stock">Còn hàng</option>
+              <option value="low">Sắp hết</option>
+              <option value="out">Hết hàng</option>
+            </select>
           </div>
           <button onClick={openCreateModal} className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground transition hover:bg-blue-dark">
             <Plus className="h-4 w-4" />
@@ -160,31 +214,27 @@ export default function ProductsPage() {
 
         <div className="overflow-hidden rounded-xl border border-border bg-card">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1000px]">
+            <table className="w-full min-w-[1120px]">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
-                  {[
-                    t('admin.product_name'),
-                    t('admin.sku'),
-                    t('admin.category'),
-                    t('admin.price'),
-                    t('admin.stock'),
-                    t('admin.status'),
-                    t('admin.ai_seo'),
-                    t('admin.actions'),
-                  ].map((heading) => (
-                    <th key={heading} className="whitespace-nowrap px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                      {heading}
-                    </th>
+                  <SortableTh label={t('admin.product_name')} sortKey="name" sort={sort} onSort={(key) => setSort((current) => toggleSort(current, key))} />
+                  <SortableTh label={t('admin.sku')} sortKey="sku" sort={sort} onSort={(key) => setSort((current) => toggleSort(current, key))} />
+                  <SortableTh label={t('admin.category')} sortKey="category" sort={sort} onSort={(key) => setSort((current) => toggleSort(current, key))} />
+                  <SortableTh label={t('admin.price')} sortKey="price" sort={sort} onSort={(key) => setSort((current) => toggleSort(current, key))} />
+                  <SortableTh label={t('admin.stock')} sortKey="stock" sort={sort} onSort={(key) => setSort((current) => toggleSort(current, key))} />
+                  <SortableTh label={t('admin.status')} sortKey="status" sort={sort} onSort={(key) => setSort((current) => toggleSort(current, key))} />
+                  <SortableTh label="Ngày tạo" sortKey="created" sort={sort} onSort={(key) => setSort((current) => toggleSort(current, key))} />
+                  {[t('admin.ai_seo'), t('admin.actions')].map((heading) => (
+                    <th key={heading} className="whitespace-nowrap px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">{heading}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {loading ? (
-                  <AdminTableSkeleton columns={8} rows={6} />
+                  <AdminTableSkeleton columns={9} rows={6} />
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-5 py-10 text-center text-sm text-muted-foreground">
+                    <td colSpan={9} className="px-5 py-10 text-center text-sm text-muted-foreground">
                       Không có sản phẩm phù hợp.
                     </td>
                   </tr>
@@ -212,6 +262,7 @@ export default function ProductsPage() {
                         <td className="px-5 py-4">
                           <span className={cn('rounded-lg border px-2.5 py-1 text-xs font-semibold', statusClass(product))}>{status}</span>
                         </td>
+                        <td className="px-5 py-4 text-sm text-muted-foreground">{formatAdminDate(product.created_at)}</td>
                         <td className="px-5 py-4">
                           {product.trending ? (
                             <span className="flex items-center gap-1 text-xs font-semibold text-accent">

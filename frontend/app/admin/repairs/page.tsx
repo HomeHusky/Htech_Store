@@ -6,11 +6,13 @@ import { AdminHeader } from '@/components/admin/header'
 import api from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { AdminStatGridSkeleton, AdminTableSkeleton } from '@/components/loading-skeletons'
+import { SortableTh, parseAdminDate, sortRows, toggleSort, type SortState } from '@/lib/admin-list'
 
 type RepairStatus = 'pending' | 'diagnosing' | 'repairing' | 'completed' | 'cancelled'
 type RepairPriority = 'low' | 'normal' | 'high'
-type RepairRequest = { id: string; customer: string; phone: string; device: string; issue: string; status: RepairStatus; priority: RepairPriority; estimatedCost?: string; createdAt: string; notes?: string }
+type RepairRequest = { id: string; customer: string; phone: string; device: string; issue: string; status: RepairStatus; priority: RepairPriority; estimatedCost?: string; createdAt: string; createdAtRaw?: string; notes?: string }
 type BackendRepair = { id: string; customer_name: string; device_name: string; issue: string; status: string; created_at?: string; notes?: Array<{ id?: string; content: string }> }
+type RepairSortKey = 'id' | 'customer' | 'device' | 'issue' | 'status' | 'priority' | 'created'
 
 const statusConfig = {
   pending: { label: 'Chờ xử lý', color: 'bg-amber-500/10 text-amber-600', icon: Clock, backend: 'received' },
@@ -44,6 +46,7 @@ export default function RepairsPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<RepairStatus | 'all'>('all')
+  const [sort, setSort] = useState<SortState<RepairSortKey>>({ key: 'created', direction: 'desc' })
   const [showAddModal, setShowAddModal] = useState(false)
   const [newRepair, setNewRepair] = useState({ customer_name: '', phone: '', device_name: '', issue: '', priority: 'normal' as RepairPriority, estimated_cost: '', notes: '' })
 
@@ -60,6 +63,7 @@ export default function RepairsPage() {
         status: statusMapBackend[repair.status] ?? 'pending',
         priority: 'normal',
         createdAt: formatDate(repair.created_at),
+        createdAtRaw: repair.created_at,
         notes: repair.notes?.map((note) => note.content).join(', '),
       })))
     } finally {
@@ -73,12 +77,21 @@ export default function RepairsPage() {
 
   const filteredRepairs = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
-    return repairs.filter((repair) => {
+    const rows = repairs.filter((repair) => {
       const matchesSearch = !query || [repair.customer, repair.phone, repair.device, repair.issue].some((value) => value.toLowerCase().includes(query))
       const matchesStatus = statusFilter === 'all' || repair.status === statusFilter
       return matchesSearch && matchesStatus
     })
-  }, [repairs, searchQuery, statusFilter])
+    return sortRows(rows, sort, {
+      id: (repair) => repair.id,
+      customer: (repair) => repair.customer,
+      device: (repair) => repair.device,
+      issue: (repair) => repair.issue,
+      status: (repair) => statusConfig[repair.status].label,
+      priority: (repair) => priorityConfig[repair.priority].label,
+      created: (repair) => parseAdminDate(repair.createdAtRaw),
+    })
+  }, [repairs, searchQuery, sort, statusFilter])
 
   const updateStatus = async (id: string, status: RepairStatus) => {
     setRepairs((current) => current.map((repair) => (repair.id === id ? { ...repair, status } : repair)))
@@ -154,7 +167,13 @@ export default function RepairsPage() {
             <table className="w-full min-w-[980px]">
               <thead className="bg-muted/60">
                 <tr className="border-b border-border text-left text-xs font-semibold uppercase text-muted-foreground">
-                  {['Mã', 'Khách hàng', 'Thiết bị', 'Vấn đề', 'Trạng thái', 'Chi phí', 'Thao tác'].map((heading) => <th key={heading} className="px-5 py-3">{heading}</th>)}
+                  <SortableTh label="Mã" sortKey="id" sort={sort} onSort={(key) => setSort((current) => toggleSort(current, key))} className="px-5 py-3" />
+                  <SortableTh label="Khách hàng" sortKey="customer" sort={sort} onSort={(key) => setSort((current) => toggleSort(current, key))} className="px-5 py-3" />
+                  <SortableTh label="Thiết bị" sortKey="device" sort={sort} onSort={(key) => setSort((current) => toggleSort(current, key))} className="px-5 py-3" />
+                  <SortableTh label="Vấn đề" sortKey="issue" sort={sort} onSort={(key) => setSort((current) => toggleSort(current, key))} className="px-5 py-3" />
+                  <SortableTh label="Trạng thái" sortKey="status" sort={sort} onSort={(key) => setSort((current) => toggleSort(current, key))} className="px-5 py-3" />
+                  <SortableTh label="Ngày tạo" sortKey="created" sort={sort} onSort={(key) => setSort((current) => toggleSort(current, key))} className="px-5 py-3" />
+                  <th className="px-5 py-3">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">

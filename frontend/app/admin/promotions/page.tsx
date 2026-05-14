@@ -6,10 +6,12 @@ import { AdminHeader } from '@/components/admin/header'
 import api from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { AdminCardGridSkeleton, AdminStatGridSkeleton } from '@/components/loading-skeletons'
+import { sortRows, type SortState } from '@/lib/admin-list'
 
 type PromoType = 'percentage' | 'fixed' | 'freeShipping'
 type PromoStatus = 'active' | 'scheduled' | 'expired' | 'disabled'
 type Promotion = { id: number; code: string; name: string; type: PromoType; value: number; minOrder: number; maxDiscount?: number; usageLimit: number; usedCount: number; startDate: string; endDate: string; status: PromoStatus; applicableProducts: 'all' | 'category' | 'specific'; category?: string }
+type PromoSortKey = 'code' | 'name' | 'type' | 'used' | 'start' | 'end' | 'status'
 
 const statusConfig = {
   active: { label: 'Đang chạy', color: 'bg-green-500/10 text-green-600', icon: CheckCircle },
@@ -65,6 +67,8 @@ export default function PromotionsPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<PromoStatus | 'all'>('all')
+  const [typeFilter, setTypeFilter] = useState<PromoType | 'all'>('all')
+  const [sort, setSort] = useState<SortState<PromoSortKey>>({ key: 'start', direction: 'desc' })
   const [showAddModal, setShowAddModal] = useState(false)
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
   const [newPromo, setNewPromo] = useState(emptyPromo)
@@ -86,12 +90,22 @@ export default function PromotionsPage() {
 
   const filteredPromotions = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
-    return promotions.filter((promo) => {
+    const rows = promotions.filter((promo) => {
       const matchesSearch = !query || [promo.code, promo.name, promo.category ?? ''].some((value) => value.toLowerCase().includes(query))
       const matchesStatus = statusFilter === 'all' || promo.status === statusFilter
-      return matchesSearch && matchesStatus
+      const matchesType = typeFilter === 'all' || promo.type === typeFilter
+      return matchesSearch && matchesStatus && matchesType
     })
-  }, [promotions, searchQuery, statusFilter])
+    return sortRows(rows, sort, {
+      code: (promo) => promo.code,
+      name: (promo) => promo.name,
+      type: (promo) => typeConfig[promo.type].label,
+      used: (promo) => promo.usedCount,
+      start: (promo) => promo.startDate,
+      end: (promo) => promo.endDate,
+      status: (promo) => statusConfig[promo.status].label,
+    })
+  }, [promotions, searchQuery, sort, statusFilter, typeFilter])
 
   const stats = useMemo(() => {
     const totalUsage = promotions.reduce((sum, promo) => sum + promo.usedCount, 0)
@@ -152,6 +166,23 @@ export default function PromotionsPage() {
             </select>
           </div>
           <button onClick={() => setShowAddModal(true)} className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground hover:bg-accent/90"><Plus className="h-4 w-4" />Tạo mã mới</button>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value as PromoType | 'all')} className="h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-accent">
+            <option value="all">Tất cả loại</option>
+            {Object.entries(typeConfig).map(([type, config]) => <option key={type} value={type}>{config.label}</option>)}
+          </select>
+          <select value={`${sort.key}:${sort.direction}`} onChange={(event) => {
+            const [key, direction] = event.target.value.split(':') as [PromoSortKey, 'asc' | 'desc']
+            setSort({ key, direction })
+          }} className="h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-accent">
+            <option value="start:desc">Ngày bắt đầu mới</option>
+            <option value="end:asc">Sắp hết hạn</option>
+            <option value="used:desc">Dùng nhiều</option>
+            <option value="code:asc">Code A-Z</option>
+            <option value="status:asc">Trạng thái</option>
+          </select>
         </div>
 
         {loading ? (

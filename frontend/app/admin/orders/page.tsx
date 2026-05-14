@@ -1,12 +1,13 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, ChevronDown, Clock, Eye, ImageIcon, Package, Truck } from 'lucide-react'
+import { CheckCircle2, ChevronDown, Clock, Eye, ImageIcon, Package, Search, Truck } from 'lucide-react'
 import { AdminHeader } from '@/components/admin/header'
 import { cn } from '@/lib/utils'
 import api from '@/lib/api'
 import { formatVnd } from '@/lib/products-api'
 import { AdminTableSkeleton } from '@/components/loading-skeletons'
+import { SortableTh, formatAdminDate, parseAdminDate, sortRows, toggleSort, type SortState } from '@/lib/admin-list'
 
 type OrderStatus = 'Awaiting Deposit' | 'Paid' | 'Service Ongoing' | 'Completed' | 'Cancelled'
 
@@ -20,9 +21,12 @@ type Order = {
   deposit: number
   status: OrderStatus
   expected_delivery: string
+  created_at?: string | null
   payment_proof?: string | null
   items: Array<{ product_id: string; name?: string; qty: number; price: number }>
 }
+
+type OrderSortKey = 'order' | 'customer' | 'items' | 'total' | 'deposit' | 'status' | 'created'
 
 const statusFlow: OrderStatus[] = ['Awaiting Deposit', 'Paid', 'Service Ongoing', 'Completed']
 const filters: Array<OrderStatus | 'Tất cả'> = ['Tất cả', ...statusFlow, 'Cancelled']
@@ -38,7 +42,9 @@ const statusConfig: Record<OrderStatus, { color: string; icon: typeof Clock; lab
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeStatus, setActiveStatus] = useState<OrderStatus | 'Tất cả'>('Tất cả')
+  const [activeStatus, setActiveStatus] = useState<(typeof filters)[number]>('Tất cả')
+  const [search, setSearch] = useState('')
+  const [sort, setSort] = useState<SortState<OrderSortKey>>({ key: 'created', direction: 'desc' })
 
   const loadOrders = async () => {
     setLoading(true)
@@ -67,51 +73,82 @@ export default function OrdersPage() {
   }
 
   const filtered = useMemo(() => {
-    return activeStatus === 'Tất cả' ? orders : orders.filter((order) => order.status === activeStatus)
-  }, [activeStatus, orders])
+    const query = search.trim().toLowerCase()
+    const rows = orders.filter((order) => {
+      const itemText = order.items.map((item) => `${item.name || item.product_id} x${item.qty}`).join(', ')
+      const matchesStatus = activeStatus === 'Tất cả' || order.status === activeStatus
+      const matchesSearch = !query || [order.order_number, order.customer, order.email, order.phone, itemText]
+        .some((value) => value.toLowerCase().includes(query))
+      return matchesStatus && matchesSearch
+    })
+    return sortRows(rows, sort, {
+      order: (order) => order.order_number,
+      customer: (order) => order.customer,
+      items: (order) => order.items.map((item) => item.name || item.product_id).join(', '),
+      total: (order) => order.total,
+      deposit: (order) => order.deposit,
+      status: (order) => statusConfig[order.status].label,
+      created: (order) => parseAdminDate(order.created_at || order.expected_delivery),
+    })
+  }, [activeStatus, orders, search, sort])
 
   return (
     <div className="flex h-full flex-col">
       <AdminHeader title="Quản lý đơn hàng" subtitle="Theo dõi đặt cọc, xác nhận thanh toán và cập nhật trạng thái đơn" />
       <div className="flex-1 space-y-4 overflow-y-auto p-6">
-        <div className="flex flex-wrap gap-2">
-          {filters.map((filter) => (
-            <button
-              key={filter}
-              onClick={() => setActiveStatus(filter)}
-              className={cn('rounded-lg border px-4 py-2 text-sm font-medium transition', activeStatus === filter ? 'border-foreground bg-foreground text-background' : 'border-border bg-card text-muted-foreground hover:border-foreground/30')}
-            >
-              {filter === 'Tất cả' ? 'Tất cả' : statusConfig[filter].label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative w-full sm:w-80">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm mã đơn, khách hàng..." className="h-10 w-full rounded-lg border border-border bg-card pl-10 pr-3 text-sm outline-none transition focus:border-accent" />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {filters.map((filter) => (
+              <button
+                key={filter}
+                onClick={() => setActiveStatus(filter)}
+                className={cn('rounded-lg border px-4 py-2 text-sm font-medium transition', activeStatus === filter ? 'border-foreground bg-foreground text-background' : 'border-border bg-card text-muted-foreground hover:border-foreground/30')}
+              >
+                {filter === 'Tất cả' ? 'Tất cả' : statusConfig[filter].label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="overflow-hidden rounded-xl border border-border bg-card">
           {loading && (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1000px]">
+              <table className="w-full min-w-[1120px]">
                 <tbody className="divide-y divide-border">
-                  <AdminTableSkeleton columns={7} rows={6} />
+                  <AdminTableSkeleton columns={8} rows={6} />
                 </tbody>
               </table>
             </div>
           )}
           <div className={cn('overflow-x-auto', loading && 'hidden')}>
-            <table className="w-full min-w-[1000px]">
+            <table className="w-full min-w-[1120px]">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
-                  {['Mã đơn', 'Khách hàng', 'Sản phẩm', 'Tổng tiền', 'Đặt cọc', 'Trạng thái', 'Thao tác'].map((heading) => (
-                    <th key={heading} className="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                      {heading}
-                    </th>
-                  ))}
+                  <SortableTh label="Mã đơn" sortKey="order" sort={sort} onSort={(key) => setSort((current) => toggleSort(current, key))} />
+                  <SortableTh label="Khách hàng" sortKey="customer" sort={sort} onSort={(key) => setSort((current) => toggleSort(current, key))} />
+                  <SortableTh label="Sản phẩm" sortKey="items" sort={sort} onSort={(key) => setSort((current) => toggleSort(current, key))} />
+                  <SortableTh label="Tổng tiền" sortKey="total" sort={sort} onSort={(key) => setSort((current) => toggleSort(current, key))} />
+                  <SortableTh label="Đặt cọc" sortKey="deposit" sort={sort} onSort={(key) => setSort((current) => toggleSort(current, key))} />
+                  <SortableTh label="Trạng thái" sortKey="status" sort={sort} onSort={(key) => setSort((current) => toggleSort(current, key))} />
+                  <SortableTh label="Ngày tạo" sortKey="created" sort={sort} onSort={(key) => setSort((current) => toggleSort(current, key))} />
+                  <th className="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="px-5 py-10 text-center text-sm text-muted-foreground">
+                    <td colSpan={8} className="px-5 py-10 text-center text-sm text-muted-foreground">
                       Đang tải đơn hàng...
+                    </td>
+                  </tr>
+                ) : filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="px-5 py-10 text-center text-sm text-muted-foreground">
+                      Không có đơn hàng phù hợp.
                     </td>
                   </tr>
                 ) : (
@@ -146,6 +183,7 @@ export default function OrdersPage() {
                             {config.label}
                           </span>
                         </td>
+                        <td className="px-5 py-4 text-sm text-muted-foreground">{formatAdminDate(order.created_at)}</td>
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-2">
                             {nextStatus && (
