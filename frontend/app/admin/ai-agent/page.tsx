@@ -26,6 +26,12 @@ const fallbackProviders: ProviderOption[] = [
   { id: 'ollama', label: 'Ollama', models: [{ id: 'qwen2.5', label: 'qwen2.5' }, { id: 'llama3.2', label: 'llama3.2' }] },
 ]
 
+const fallbackEmbeddingProviders: ProviderOption[] = [
+  { id: 'gemini', label: 'Gemini', models: [{ id: 'gemini-embedding-001', label: 'gemini-embedding-001' }, { id: 'gemini-embedding-2', label: 'gemini-embedding-2' }] },
+  { id: 'openai', label: 'ChatGPT', models: [{ id: 'text-embedding-3-small', label: 'text-embedding-3-small' }, { id: 'text-embedding-3-large', label: 'text-embedding-3-large' }] },
+  { id: 'ollama', label: 'Ollama', models: [{ id: 'qwen2.5', label: 'qwen2.5' }, { id: 'llama3.2', label: 'llama3.2' }] },
+]
+
 const defaultOrder: ModelPick[] = [
   { provider: 'gemini', model: 'gemini-1.5-flash' },
   { provider: 'openai', model: 'gpt-4o-mini' },
@@ -34,6 +40,7 @@ const defaultOrder: ModelPick[] = [
 
 export default function AIAgentPage() {
   const [providers, setProviders] = useState<ProviderOption[]>(fallbackProviders)
+  const [embeddingProviders, setEmbeddingProviders] = useState<ProviderOption[]>(fallbackEmbeddingProviders)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -42,6 +49,11 @@ export default function AIAgentPage() {
     chat_model: 'gemini-1.5-flash',
     embedding_provider: 'gemini',
     embedding_model: 'gemini-embedding-001',
+    gemini_api_key: '',
+    openai_api_key: '',
+    openai_text_embed_3_small_key: '',
+    phi4_api_key: '',
+    phi4_reasoning_api_key: '',
     system_prompt: '',
     chat_model_order: defaultOrder,
     task_model_config: {} as Record<string, ModelPick>,
@@ -57,12 +69,14 @@ export default function AIAgentPage() {
 
   useEffect(() => {
     Promise.all([
-      api.get<any>('/admin/model-catalog').catch(() => ({ data: { chat_providers: fallbackProviders, embedding_providers: fallbackProviders } })),
+      api.get<any>('/admin/model-catalog').catch(() => ({ data: { chat_providers: fallbackProviders, embedding_providers: fallbackEmbeddingProviders } })),
       api.get<any>('/admin/settings'),
     ])
       .then(([catalog, current]) => {
         const chatProviders = catalog.data.chat_providers?.length ? catalog.data.chat_providers : fallbackProviders
+        const embedProviders = catalog.data.embedding_providers?.length ? catalog.data.embedding_providers : fallbackEmbeddingProviders
         setProviders(chatProviders)
+        setEmbeddingProviders(embedProviders)
         const data = current.data
         setSettings((prev) => ({
           ...prev,
@@ -81,8 +95,17 @@ export default function AIAgentPage() {
     return Object.fromEntries(providers.map((provider) => [provider.id, provider.models]))
   }, [providers])
 
+  const embeddingProviderModels = useMemo(() => {
+    return Object.fromEntries(embeddingProviders.map((provider) => [provider.id, provider.models]))
+  }, [embeddingProviders])
+
   const updatePick = (pick: ModelPick, provider: string): ModelPick => {
     const model = providerModels[provider]?.[0]?.id || pick.model
+    return { provider, model }
+  }
+
+  const updateEmbeddingPick = (pick: ModelPick, provider: string): ModelPick => {
+    const model = embeddingProviderModels[provider]?.[0]?.id || pick.model
     return { provider, model }
   }
 
@@ -140,6 +163,17 @@ export default function AIAgentPage() {
       </select>
       <select value={pick.model} onChange={(event) => onChange({ ...pick, model: event.target.value })} className="h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-accent">
         {(providerModels[pick.provider] || []).map((model) => <option key={model.id} value={model.id}>{model.label}</option>)}
+      </select>
+    </div>
+  )
+
+  const renderEmbeddingPick = (pick: ModelPick, onChange: (pick: ModelPick) => void) => (
+    <div className="grid gap-2 sm:grid-cols-2">
+      <select value={pick.provider} onChange={(event) => onChange(updateEmbeddingPick(pick, event.target.value))} className="h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-accent">
+        {embeddingProviders.map((provider) => <option key={provider.id} value={provider.id}>{provider.label}</option>)}
+      </select>
+      <select value={pick.model} onChange={(event) => onChange({ ...pick, model: event.target.value })} className="h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-accent">
+        {(embeddingProviderModels[pick.provider] || []).map((model) => <option key={model.id} value={model.id}>{model.label}</option>)}
       </select>
     </div>
   )
@@ -209,6 +243,22 @@ export default function AIAgentPage() {
               </section>
 
               <section className="rounded-xl border border-border bg-card p-5">
+                <SectionTitle icon={RefreshCw} title="Embedding model" />
+                <div className="mt-4">{renderEmbeddingPick({ provider: settings.embedding_provider, model: settings.embedding_model }, (pick) => setSettings({ ...settings, embedding_provider: pick.provider, embedding_model: pick.model }))}</div>
+              </section>
+
+              <section className="rounded-xl border border-border bg-card p-5">
+                <SectionTitle icon={Sparkles} title="API keys" />
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <SecretInput label="Gemini API key" value={settings.gemini_api_key || ''} onChange={(value) => setSettings({ ...settings, gemini_api_key: value })} />
+                  <SecretInput label="OpenAI / GitHub PAT" value={settings.openai_api_key || ''} onChange={(value) => setSettings({ ...settings, openai_api_key: value })} />
+                  <SecretInput label="OpenAI embedding key" value={settings.openai_text_embed_3_small_key || ''} onChange={(value) => setSettings({ ...settings, openai_text_embed_3_small_key: value })} />
+                  <SecretInput label="Phi-4 API key" value={settings.phi4_api_key || ''} onChange={(value) => setSettings({ ...settings, phi4_api_key: value })} />
+                  <SecretInput label="Phi-4 reasoning key" value={settings.phi4_reasoning_api_key || ''} onChange={(value) => setSettings({ ...settings, phi4_reasoning_api_key: value })} />
+                </div>
+              </section>
+
+              <section className="rounded-xl border border-border bg-card p-5">
                 <SectionTitle icon={Sparkles} title="System prompt" />
                 <textarea value={settings.system_prompt || ''} onChange={(event) => setSettings({ ...settings, system_prompt: event.target.value })} rows={10} className="mt-4 w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-sm outline-none focus:border-accent" />
               </section>
@@ -261,6 +311,15 @@ function SectionTitle({ icon: Icon, title }: { icon: typeof Bot; title: string }
       <Icon className="h-4 w-4 text-accent" />
       <h2 className="font-bold text-foreground">{title}</h2>
     </div>
+  )
+}
+
+function SecretInput({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <label className="block text-sm font-medium text-foreground">
+      {label}
+      <input type="password" value={value} onChange={(event) => onChange(event.target.value)} autoComplete="off" className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-accent" />
+    </label>
   )
 }
 
